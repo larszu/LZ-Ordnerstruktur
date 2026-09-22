@@ -2,11 +2,11 @@
   "name": "lz-ordnerstruktur",
   "productName": "LZ Ordnerstruktur",
   "version": "1.0.0",
-  "description": "Legt die Sola-Ordnerstruktur an, installiert die Lightroom-Vorgaben und sortiert Fotos und Videos von Kamera oder SD-Karte direkt in die richtigen Ordner — für macOS und Windows.",
-  "author": "Sola Multimedia Team",
+  "description": "Ordnerstrukturen nach frei konfigurierbaren Vorlagen anlegen, Fotos und Videos von Kamera oder SD-Karte importieren, vorhandene Dateien nach Datum und Inhalt einsortieren, Duplikate finden und aufräumen — privat und fürs Sola, für macOS und Windows.",
+  "author": "Lars Zumpe Medienproduktion",
   "repository": {
     "type": "git",
-    "url": "https://github.com/larszu/SOLA-Ordnerstruktur.git"
+    "url": "https://github.com/larszu/LZ-Ordnerstruktur.git"
   },
   "license": "MIT",
   "main": "src/main/main.js",
@@ -18,7 +18,8 @@
     "dist:win": "electron-builder --win",
     "dist:all": "electron-builder --mac --win",
     "smoke": "xvfb-run -a --server-args=\"-screen 0 1400x1000x24\" electron --no-sandbox scripts/smoke.js",
-    "smoke:mac": "electron scripts/smoke.js"
+    "smoke:mac": "electron scripts/smoke.js",
+    "logo": "node scripts/logo.js"
   },
   "devDependencies": {
     "electron": "^43.3.0",

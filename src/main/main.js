@@ -4,8 +4,13 @@ const { app, BrowserWindow, dialog, ipcMain, shell, Menu } = require('electron')
 const fs = require('fs');
 const path = require('path');
 
-const { buildPlan, BEREICHE, SOLAS, emptyConfig } = require('../core/structure');
+const { planFuerVorlage } = require('../core/structure');
 const { createStructure } = require('../core/createStructure');
+const vorlagen = require('../core/vorlagen');
+const vorlagenStore = require('../core/vorlagenStore');
+const einstellungen = require('../core/einstellungen');
+const sortieren = require('../core/sortieren');
+const werkzeuge = require('../core/werkzeuge');
 const exif = require('../core/exif');
 const { vergleicheImport, runImport, VERGLEICH_METHODEN } = require('../core/importRun');
 const { schemaListe } = require('../core/importPlan');
@@ -14,12 +19,13 @@ const { installPresets, lightroomPfade } = require('../core/lightroom');
 const presetStore = require('../core/presetStore');
 const { SOLA_TAGE, MIN_TAGE, MAX_TAGE } = require('../core/dates');
 const { toCsv, toJson, parseConfig, csvVerlust } = require('../core/config');
+const { STANDARD_GRUPPEN } = require('../core/sachgruppen');
 
 const IST_MAC = process.platform === 'darwin';
 
 /**
- * Die Vorlagen liegen im gepackten Build unter `resources/`, im Entwicklungs-
- * betrieb im Projektordner.
+ * Die Lightroom-Vorlagen liegen im gepackten Build unter `resources/`, im
+ * Entwicklungsbetrieb im Projektordner.
  */
 function presetsDir() {
   return app.isPackaged
@@ -28,13 +34,17 @@ function presetsDir() {
 }
 
 /**
- * Eigene Vorgaben liegen im Benutzerdatenordner und überleben damit ein
- * Update der App — anders als der mitgelieferte, schreibgeschützte Ordner.
- * Über SOLA_USER_PRESETS lässt sich der Pfad für Tests umbiegen.
+ * Eigene Dateien (Vorgaben, Vorlagen, Einstellungen) liegen im Benutzer-
+ * datenordner und überleben damit ein Update der App.
+ * Über LZ_USER_DATA lässt sich der Pfad für Tests umbiegen.
  */
-function userPresetsDir() {
-  return process.env.SOLA_USER_PRESETS || path.join(app.getPath('userData'), 'presets');
+function userDir(unterordner = '') {
+  const basis = process.env.LZ_USER_DATA || process.env.SOLA_USER_PRESETS_BASIS || app.getPath('userData');
+  return unterordner ? path.join(basis, unterordner) : basis;
 }
+
+const userPresetsDir = () => process.env.SOLA_USER_PRESETS || userDir('presets');
+const userVorlagenDir = () => userDir('vorlagen');
 
 const presetOrdner = () => ({ bundledDir: presetsDir(), userDir: userPresetsDir() });
 
@@ -43,10 +53,10 @@ let fenster = null;
 
 function createWindow() {
   fenster = new BrowserWindow({
-    width: 1180,
-    height: 900,
-    minWidth: 600,
-    minHeight: 560,
+    width: 1240,
+    height: 920,
+    minWidth: 720,
+    minHeight: 580,
     title: 'LZ Ordnerstruktur',
     backgroundColor: '#f6f5f0',
     // Auf macOS sitzt die Ampel im eigenen Header, unter Windows bleibt die
@@ -82,12 +92,12 @@ function buildMenu() {
       label: 'Datei',
       submenu: [
         {
-          label: 'Konfiguration laden …',
+          label: 'Einstellungen laden …',
           accelerator: 'CmdOrCtrl+O',
           click: () => fenster && fenster.webContents.send('menu:load'),
         },
         {
-          label: 'Konfiguration speichern …',
+          label: 'Einstellungen speichern …',
           accelerator: 'CmdOrCtrl+S',
           click: () => fenster && fenster.webContents.send('menu:save'),
         },
@@ -109,11 +119,11 @@ function buildMenu() {
       submenu: [
         {
           label: 'Projekt auf GitHub',
-          click: () => shell.openExternal('https://github.com/larszu/SOLA-Ordnerstruktur'),
+          click: () => shell.openExternal('https://github.com/larszu/LZ-Ordnerstruktur'),
         },
         {
-          label: 'Original für Windows (TH0RB3Nger)',
-          click: () => shell.openExternal('https://github.com/TH0RB3Nger/SOLA_Ordnerstrucktur'),
+          label: 'Lars Zumpe Medienproduktion',
+          click: () => shell.openExternal('https://zumpelars.de'),
         },
       ],
     },
@@ -137,38 +147,104 @@ app.on('window-all-closed', () => {
 // IPC – alles, was Datei- oder Dialogzugriff braucht, läuft hier im Hauptprozess.
 // ---------------------------------------------------------------------------
 
+/** Holt die Vorlage zu einer Id – mitgeliefert oder selbst angelegt. */
+const holeVorlage = (id) => vorlagenStore.findeVorlage(userVorlagenDir(), id) || vorlagen.VORLAGE_SOLA;
+
 ipcMain.handle('dialog:ordnerWaehlen', async (_e, titel) => {
   const ergebnis = await dialog.showOpenDialog(fenster, {
-    title: titel || 'Zielordner wählen',
-    message: titel || 'Zielordner wählen',
+    title: titel || 'Ordner wählen',
+    message: titel || 'Ordner wählen',
     properties: ['openDirectory', 'createDirectory'],
     buttonLabel: 'Auswählen',
   });
   return ergebnis.canceled ? '' : ergebnis.filePaths[0];
 });
 
-ipcMain.handle('plan:vorschau', (_e, config) => buildPlan(config));
+ipcMain.handle('plan:vorschau', (_e, { config, vorlageId }) => {
+  const vorlage = holeVorlage(vorlageId);
+  const plan = planFuerVorlage(vorlage, config);
+  return { ...plan, vorlageId: vorlage.id };
+});
 
-ipcMain.handle('struktur:erstellen', (_e, { zielPfad, config }) => createStructure(zielPfad, config));
+ipcMain.handle('struktur:erstellen', (_e, { zielPfad, config, vorlageId }) =>
+  createStructure(zielPfad, config, holeVorlage(vorlageId)),
+);
 
 ipcMain.handle('struktur:oeffnen', (_e, pfad) => {
   if (pfad && fs.existsSync(pfad)) shell.openPath(pfad);
 });
 
-ipcMain.handle('config:speichern', async (_e, config) => {
+// --- Vorlagen ---------------------------------------------------------------
+
+ipcMain.handle('vorlagen:liste', () => vorlagenStore.listeVorlagen(userVorlagenDir()));
+
+ipcMain.handle('vorlagen:speichern', (_e, { vorlage, neu }) =>
+  vorlagenStore.speichereVorlage(userVorlagenDir(), vorlage, { neu: Boolean(neu) }),
+);
+
+ipcMain.handle('vorlagen:loeschen', (_e, id) => vorlagenStore.loescheVorlage(userVorlagenDir(), id));
+
+ipcMain.handle('vorlagen:leereConfig', (_e, vorlageId) => vorlagen.leereConfig(holeVorlage(vorlageId)));
+
+// Eine gemerkte Konfiguration kann zu einer Vorlage gehören, die inzwischen
+// geändert wurde — neue Blöcke fehlen dann darin. Hier wird sie aufgefüllt.
+ipcMain.handle('vorlagen:configPruefen', (_e, { config, vorlageId }) =>
+  vorlagen.normalisiereConfig(config, holeVorlage(vorlageId)),
+);
+
+// Vorschau für den Vorlagen-Editor: der Baum, den ein Entwurf ergäbe.
+ipcMain.handle('vorlagen:probe', (_e, { vorlage, config }) => {
+  const v = vorlagen.normalisiereVorlage(vorlage);
+  return planFuerVorlage(v, config || beispielConfig(v));
+});
+
+/**
+ * Baut eine Beispiel-Konfiguration: alle Blöcke und Bereiche an, ein Startdatum
+ * und zwei Namen je Liste. So zeigt die Vorschau im Editor, was die Vorlage
+ * überhaupt kann — auch bevor irgendetwas ausgefüllt wurde.
+ */
+function beispielConfig(vorlage) {
+  const config = vorlagen.leereConfig(vorlage);
+  config.jahr = String(new Date().getFullYear());
+  config.name = 'Beispiel';
+  for (const projekt of vorlage.projekte) {
+    config[projekt.key].aktiv = true;
+    config[projekt.key].start = `${config.jahr}-06-13`;
+    config[projekt.key].tage = Math.min(vorlage.standardTage, 3);
+    for (const bereich of vorlage.bereiche) config[projekt.key].bereiche[bereich.key] = true;
+    for (const liste of vorlage.namenslisten) {
+      config[projekt.key][liste.key] = ['Anna', 'Ben', ...Array(8).fill('')];
+    }
+  }
+  return config;
+}
+
+// --- Einstellungen ----------------------------------------------------------
+
+ipcMain.handle('einstellungen:lesen', () => einstellungen.lade(userDir()));
+ipcMain.handle('einstellungen:schreiben', (_e, aenderungen) => einstellungen.speichere(userDir(), aenderungen));
+ipcMain.handle('einstellungen:zuruecksetzen', () => einstellungen.zuruecksetzen(userDir()));
+
+// --- Konfiguration als Datei ------------------------------------------------
+
+ipcMain.handle('config:speichern', async (_e, { config, vorlageId }) => {
+  const vorlage = holeVorlage(vorlageId);
+  const istSola = vorlage.id === 'sola';
   const ergebnis = await dialog.showSaveDialog(fenster, {
-    title: 'Konfiguration speichern unter',
-    defaultPath: `Sola_Konfiguration_${config.jahr || new Date().getFullYear()}.json`,
-    filters: [
-      { name: 'JSON', extensions: ['json'] },
-      { name: 'CSV (Format des Windows-Originals)', extensions: ['csv'] },
-    ],
+    title: 'Einstellungen speichern unter',
+    defaultPath: `${vorlage.id}_Konfiguration_${config.jahr || new Date().getFullYear()}.json`,
+    filters: istSola
+      ? [
+          { name: 'JSON', extensions: ['json'] },
+          { name: 'CSV (Format des Windows-Originals)', extensions: ['csv'] },
+        ]
+      : [{ name: 'JSON', extensions: ['json'] }],
   });
   if (ergebnis.canceled || !ergebnis.filePath) return { gespeichert: false };
 
   const pfad = ergebnis.filePath;
-  const alsCsv = /\.csv$/i.test(pfad);
-  const inhalt = alsCsv ? toCsv(config) : toJson(config);
+  const alsCsv = istSola && /\.csv$/i.test(pfad);
+  const inhalt = alsCsv ? toCsv(config) : toJson({ ...config, vorlage: vorlage.id });
   try {
     fs.writeFileSync(pfad, inhalt, 'utf8');
     // Das CSV-Format des Originals kennt nur Teens, Kids und acht Tage.
@@ -181,7 +257,7 @@ ipcMain.handle('config:speichern', async (_e, config) => {
 
 ipcMain.handle('config:laden', async () => {
   const ergebnis = await dialog.showOpenDialog(fenster, {
-    title: 'Konfiguration wählen',
+    title: 'Einstellungen wählen',
     properties: ['openFile'],
     filters: [
       { name: 'Konfiguration', extensions: ['json', 'csv'] },
@@ -194,19 +270,25 @@ ipcMain.handle('config:laden', async () => {
   const pfad = ergebnis.filePaths[0];
   try {
     const text = fs.readFileSync(pfad, 'utf8');
-    return { geladen: true, pfad, config: parseConfig(text, pfad) };
+    // Die Datei sagt selbst, zu welcher Vorlage sie gehört; fehlt die Angabe,
+    // ist es eine alte Sola-Datei.
+    const roh = /\.json$/i.test(pfad) || text.trim().startsWith('{') ? JSON.parse(text) : null;
+    const vorlageId = roh && roh.vorlage ? String(roh.vorlage) : 'sola';
+    const vorlage = holeVorlage(vorlageId);
+    const config = roh ? vorlagen.normalisiereConfig(roh, vorlage) : parseConfig(text, pfad);
+    return { geladen: true, pfad, config, vorlageId: vorlage.id };
   } catch (err) {
     return { geladen: false, fehler: err.message };
   }
 });
+
+// --- Lightroom --------------------------------------------------------------
 
 ipcMain.handle('lightroom:pfade', () => ({ ...lightroomPfade(), eigene: userPresetsDir() }));
 
 ipcMain.handle('lightroom:installieren', (_e, { jahr, sola, kuerzel }) =>
   installPresets({ vorgaben: presetStore.listPresets(presetOrdner()), jahr, sola, kuerzel }),
 );
-
-// --- Verwaltung der Vorgaben ------------------------------------------------
 
 ipcMain.handle('presets:liste', () => presetStore.listPresets(presetOrdner()));
 
@@ -262,15 +344,92 @@ const { version: APP_VERSION } = require('../../package.json');
 ipcMain.handle('app:info', () => ({
   version: APP_VERSION,
   plattform: process.platform,
-  // Bereichsliste und leere Konfiguration kommen aus dem Kern, damit die
-  // Oberfläche keine zweite Quelle der Wahrheit aufmacht.
-  bereiche: BEREICHE,
-  solas: SOLAS,
+  vorlagen: vorlagenStore.listeVorlagen(userVorlagenDir()),
   tage: { standard: SOLA_TAGE, min: MIN_TAGE, max: MAX_TAGE },
-  leereConfig: emptyConfig(),
+  anzahlNamen: vorlagen.ANZAHL_NAMEN,
   importSchemata: schemaListe(),
-  exiftool: exif.vorhanden,
+  datumSchemata: sortieren.schemaListe(),
+  aufraeumKategorien: sortieren.AUFRAEUM_KATEGORIEN,
+  standardGruppen: STANDARD_GRUPPEN,
+  werkzeuge: werkzeuge.stand(),
+  einstellungen: einstellungen.lade(userDir()),
 }));
+
+// ---------------------------------------------------------------------------
+// Sortieren und Aufräumen
+// ---------------------------------------------------------------------------
+
+// Der zuletzt berechnete Plan je Aufgabe. „Ausführen" setzt genau den um, der
+// in der Vorschau stand – es wird nicht heimlich neu eingelesen.
+const letztePruefung = {};
+
+const sortierMelder = (aufgabe) => (text) => {
+  if (fenster) fenster.webContents.send('sortieren:fortschritt', { aufgabe, text });
+};
+
+/** Entfernt eine Datei – in den Papierkorb, wenn die Oberfläche das will. */
+function entferner(inPapierkorb) {
+  if (!inPapierkorb) return async (pfad) => fs.promises.unlink(pfad).catch(() => {});
+  return async (pfad) => {
+    try {
+      await shell.trashItem(pfad);
+    } catch (_) {
+      // Manche Dateisysteme (Netzlaufwerke, externe Platten) kennen keinen
+      // Papierkorb. Dann bleibt die Datei liegen, statt still zu verschwinden.
+    }
+  };
+}
+
+const PRUEFER = {
+  fotos: sortieren.pruefeFotos,
+  dokumente: sortieren.pruefeDokumente,
+  duplikate: sortieren.pruefeDuplikate,
+  aufraeumen: sortieren.pruefeAufraeumen,
+};
+
+const AUSFUEHRER = {
+  fotos: sortieren.fuehreFotosAus,
+  dokumente: sortieren.fuehreDokumenteAus,
+  duplikate: sortieren.fuehreDuplikateAus,
+  aufraeumen: sortieren.fuehreAufraeumenAus,
+};
+
+ipcMain.handle('sortieren:pruefen', async (_e, { aufgabe, quelle, optionen }) => {
+  const pruefe = PRUEFER[aufgabe];
+  if (!pruefe) return { ok: false, fehler: 'Unbekannte Aufgabe.' };
+  if (!quelle) return { ok: false, fehler: 'Bitte zuerst einen Ordner wählen.' };
+  try {
+    const ergebnis = await pruefe(quelle, optionen || {}, sortierMelder(aufgabe));
+    letztePruefung[aufgabe] = { ergebnis, optionen: optionen || {} };
+    return {
+      ok: true,
+      zusammenfassung: ergebnis.zusammenfassung,
+      // Nur eine kompakte Vorschau an die Oberfläche geben, nicht zehntausende Zeilen.
+      vorschau: (ergebnis.plan || []).slice(0, 300).map((s) => sortieren.beschreibe(aufgabe, s)),
+      gesamt: (ergebnis.plan || []).length,
+    };
+  } catch (err) {
+    return { ok: false, fehler: String(err.message || err) };
+  }
+});
+
+ipcMain.handle('sortieren:ausfuehren', async (_e, { aufgabe, inPapierkorb }) => {
+  const gespeichert = letztePruefung[aufgabe];
+  const fuehreAus = AUSFUEHRER[aufgabe];
+  if (!gespeichert || !fuehreAus) return { ok: false, fehler: 'Bitte zuerst eine Vorschau erstellen.' };
+  try {
+    const optionen = { ...gespeichert.optionen, entferne: entferner(inPapierkorb !== false) };
+    const ergebnis = await fuehreAus(gespeichert.ergebnis, optionen, sortierMelder(aufgabe));
+    delete letztePruefung[aufgabe];
+    return { ok: true, ...ergebnis };
+  } catch (err) {
+    return { ok: false, fehler: String(err.message || err) };
+  }
+});
+
+ipcMain.handle('sortieren:verwerfen', (_e, aufgabe) => {
+  delete letztePruefung[aufgabe];
+});
 
 // ---------------------------------------------------------------------------
 // Importfenster: Kamera / Kartenleser / SD-Karte direkt in die richtigen Ordner
@@ -279,9 +438,9 @@ ipcMain.handle('app:info', () => ({
 
 /** @type {BrowserWindow|null} */
 let importFenster = null;
-// Kontext aus dem Hauptfenster (Konfiguration + gewählter Zielordner) und der
+// Kontext aus dem Hauptfenster (Vorlage, Konfiguration, Zielordner) und der
 // zuletzt berechnete Plan, damit „Kopieren" genau den verglichenen Stand umsetzt.
-let importKontext = { config: emptyConfig(), zielordner: '' };
+let importKontext = { config: vorlagen.leereConfig(vorlagen.VORLAGE_SOLA), zielordner: '', vorlageId: 'sola' };
 let letzterVergleich = null;
 
 const importMelder = () => (text) => {
@@ -318,27 +477,38 @@ function oeffneImportFenster() {
 }
 
 ipcMain.handle('import:fensterOeffnen', (_e, kontext) => {
-  if (kontext && kontext.config) importKontext = { config: kontext.config, zielordner: kontext.zielordner || '' };
+  if (kontext && kontext.config) {
+    importKontext = {
+      config: kontext.config,
+      zielordner: kontext.zielordner || '',
+      vorlageId: kontext.vorlageId || 'sola',
+    };
+  }
   oeffneImportFenster();
 });
 
-ipcMain.handle('import:kontext', () => ({
-  config: importKontext.config,
-  zielordner: importKontext.zielordner,
-  schemata: schemaListe(),
-  methoden: VERGLEICH_METHODEN,
-  solas: SOLAS,
-  bereiche: BEREICHE,
-  exiftool: exif.vorhanden,
-  plattform: process.platform,
-}));
+ipcMain.handle('import:kontext', () => {
+  const vorlage = holeVorlage(importKontext.vorlageId);
+  return {
+    config: importKontext.config,
+    zielordner: importKontext.zielordner,
+    vorlage,
+    schemata: schemaListe(),
+    methoden: VERGLEICH_METHODEN,
+    exiftool: exif.vorhanden,
+    plattform: process.platform,
+  };
+});
 
 ipcMain.handle('geraete:liste', () => listRemovable());
 
 ipcMain.handle('import:vergleichen', async (_e, { quelle, zielBasis, schema, ktx, config, methode }) => {
   if (!quelle) return { ok: false, fehler: 'Bitte zuerst eine Quelle wählen.' };
   try {
-    const r = await vergleicheImport({ quelle, zielBasis, schema, ktx, config, methode, melde: importMelder() });
+    // Die Vorlage kommt aus dem Hauptprozess, nicht aus dem Fenster – so kann
+    // die Oberfläche kein fremdes Ziel unterschieben.
+    const kontext = { ...ktx, vorlage: holeVorlage(importKontext.vorlageId) };
+    const r = await vergleicheImport({ quelle, zielBasis, schema, ktx: kontext, config, methode, melde: importMelder() });
     letzterVergleich = { plan: r.plan, methode };
     return {
       ok: true,

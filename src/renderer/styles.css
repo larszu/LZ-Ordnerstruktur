@@ -1,1108 +1,1121 @@
-/* Lars Zumpe CI: Zumpe Navy #1D324F, Deep Navy #132040, Eisblau #E1ECEF,
-   Stahlblau #8C9CB3, Schiefer #5C6B85, Papier #F6F5F0.
-   Funktionsfarben: Erfolg #2F7D5C, Hinweis #C8892B, Fehler #B04A3F.
-   Schrift: Public Sans. Dieselbe Optik wie der LZ-Sortierer. */
+/* LZ Ordnerstruktur — Corporate Design der Lars Zumpe Medienproduktion,
+   Brand Guide 2.0 (September 2026).
+
+   Blau bleibt die Marke, Rot ist das Signal. Die App ist die helle Anwendung
+   der Palette (wie Print): Off-White als Grund, Navy als Fläche und Text.
+   Rot kommt genau zweimal vor — im Signet der Kopfzeile und im Fokusring.
+   Keine Rundungen, keine Schatten, keine Verläufe, keine Rahmen als Dekor:
+   Struktur entsteht durch die Linie, Bedeutung durch den Punkt. */
+
 @font-face {
   font-family: 'Public Sans';
   src: local('Public Sans');
 }
 
 :root {
-  /* CI-Grundfarben */
+  /* Palette */
   --navy: #1d324f;
   --deep: #132040;
+  --offwhite: #f6f5f0;
   --eis: #e1ecef;
   --stahl: #8c9cb3;
   --schiefer: #5c6b85;
-  --papier: #f6f5f0;
+  --weiss: #ffffff;
+  --signal: #d6402e;
 
-  /* Rollen der Oberfläche, auf die CI abgebildet */
-  --bg: var(--papier);
-  --karte: #ffffff;
-  --rand: var(--eis);
+  /* Rollen */
+  --grund: var(--offwhite);
+  --flaeche: var(--weiss);
   --text: var(--navy);
-  --gedaempft: var(--schiefer);
-  --akzent: var(--navy);
-  --akzent-hell: var(--eis);
-  --warnung: #c8892b;
-  --warnung-hell: #fbf0de;
-  --warnung-text: #8a5510; /* für Text: Amber selbst erreicht kein AA */
+  --text-still: var(--schiefer);
+  --linie: rgba(29, 50, 79, 0.16);
+  --linie-stark: rgba(29, 50, 79, 0.34);
+  --linie-dunkel: rgba(246, 245, 240, 0.16);
+
+  /* Status — ausschließlich für Meldungen */
+  --ok: #2f7d5c;
+  --ok-flaeche: #e5f0ea;
+  --warn: #c8892b;
+  --warn-text: #8a5510;
+  --warn-flaeche: #fbf0de;
   --fehler: #b04a3f;
-  --fehler-hell: #f7e7e4;
   --fehler-text: #8f382e;
-  --erfolg: #2f7d5c;
-  --erfolg-hell: #e5f0ea;
-  --erfolg-text: #216046;
+  --fehler-flaeche: #f7e7e4;
 
-  /* Spacing-Skala (4-px-Raster) */
-  --s-1: 4px;
-  --s-2: 8px;
-  --s-3: 12px;
-  --s-4: 16px;
-  --s-5: 20px;
-  --s-6: 24px;
-  --s-8: 32px;
+  /* Raster: 8 px */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 24px;
+  --s6: 32px;
+  --s7: 48px;
 
-  /* Fokus, Schatten, Übergänge */
-  --fokus: #1d5fbf;
-  --schatten: 0 1px 2px rgba(19, 32, 64, 0.06), 0 1px 3px rgba(19, 32, 64, 0.05);
-  --schatten-hover: 0 2px 6px rgba(19, 32, 64, 0.10), 0 3px 12px rgba(19, 32, 64, 0.08);
-  --tempo: 0.15s;
-
-  --radius: 8px;
-  --schrift: 'Public Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
-  --mono: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  --schrift: 'Public Sans', system-ui, 'Segoe UI', Roboto, Arial, sans-serif;
+  --mono: 'SF Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --dur: 0.2s;
 }
 
-* {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
+  border-radius: 0;
 }
 
-/* Ein Desktop-Fenster scrollt nie seitlich – breite Inhalte (z. B. die
-   Vorgabentabelle) bekommen ihre eigene, waagerechte Bildlaufleiste. */
-html {
-  overflow-x: hidden;
+/* Muss die display-Regeln der Bausteine schlagen — sonst bleiben Felder
+   sichtbar, die eine Vorlage gar nicht braucht. */
+[hidden] {
+  display: none !important;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
 }
 
 body {
-  margin: 0;
-  font-family: var(--schrift);
-  font-size: 14px;
+  display: flex;
+  flex-direction: column;
+  background: var(--grund);
   color: var(--text);
-  background: var(--bg);
+  font-family: var(--schrift);
+  font-size: 15px;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
 }
 
-/* Auf macOS ragt die Ampel in den Fensterkopf – Platz lassen und ziehbar machen. */
+code,
+.mono {
+  font-family: var(--mono);
+  font-size: 0.87em;
+}
+
+code {
+  background: var(--eis);
+  color: var(--navy);
+  padding: 1px 6px;
+}
+
+a {
+  color: var(--navy);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+/* Fokus ist der eine Ort, an dem Rot außerhalb des Signets vorkommt. */
+:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: 3px;
+}
+
+/* --- Kopfzeile ----------------------------------------------------------- */
+
 .kopf {
   display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  align-items: flex-end;
-  justify-content: space-between;
-  padding: 34px 28px 18px;
-  background: var(--karte);
-  border-bottom: 1px solid var(--rand);
+  align-items: center;
+  gap: var(--s4);
+  flex: none;
+  background: var(--deep);
+  color: var(--offwhite);
+  padding: var(--s3) var(--s5);
+  /* Auf macOS sitzt die Fensterampel im Header. */
+  padding-left: 88px;
   -webkit-app-region: drag;
 }
 
-.kopf button,
-.kopf input,
-.kopf a {
-  -webkit-app-region: no-drag;
+.kopf-signet {
+  display: block;
+  width: 34px;
+  height: 34px;
+  flex: none;
 }
 
-.kopf h1 {
-  margin: 0;
-  font-size: 20px;
-  letter-spacing: -0.01em;
-}
-
-.kopf-titel p {
-  margin: 4px 0 0;
-  color: var(--gedaempft);
-}
-
-.kopf-aktionen {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.version {
-  color: var(--gedaempft);
-  font-size: 12px;
-  font-family: var(--mono);
-}
-
-main {
-  display: grid;
-  gap: 18px;
-  padding: 22px 28px 40px;
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-.karte {
-  background: var(--karte);
-  border: 1px solid var(--rand);
-  border-radius: var(--radius);
-  padding: 18px 20px 20px;
-  /* Ohne das schrumpft ein Grid-Element nie unter die Breite seines
-     Inhalts – die scrollende Tabelle würde die ganze Seite aufspreizen. */
+.kopf-titel {
+  flex: 1;
   min-width: 0;
 }
 
-.karte h2 {
-  margin: 0 0 14px;
-  font-size: 13px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--gedaempft);
+.kopf-titel h1 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
 }
+
+.kopf-titel p {
+  margin: 0;
+  color: var(--stahl);
+  font-size: 12.5px;
+}
+
+.version {
+  color: var(--stahl);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Rahmen: Seitenleiste + Inhalt --------------------------------------- */
+
+.rahmen {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.seitenleiste {
+  flex: none;
+  width: 232px;
+  background: var(--navy);
+  padding: var(--s4) 0 var(--s6);
+  overflow-y: auto;
+}
+
+.nav-kicker {
+  margin: var(--s4) var(--s4) var(--s1);
+  padding-bottom: var(--s1);
+  border-bottom: 1px solid var(--linie-dunkel);
+  color: var(--stahl);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.nav-kicker:first-child {
+  margin-top: 0;
+}
+
+.nav-knopf {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--eis);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  padding: var(--s2) var(--s4);
+  cursor: pointer;
+  border-left: 3px solid transparent;
+  transition: background var(--dur) var(--ease);
+}
+
+.nav-knopf:hover {
+  background: rgba(246, 245, 240, 0.07);
+}
+
+.nav-knopf.aktiv {
+  background: rgba(246, 245, 240, 0.1);
+  border-left-color: var(--offwhite);
+  color: var(--offwhite);
+  font-weight: 700;
+}
+
+main {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  padding: var(--s6) var(--s6) var(--s7);
+}
+
+.ansicht {
+  display: none;
+  max-width: 940px;
+}
+
+.ansicht.aktiv {
+  display: block;
+}
+
+/* --- Typografie ---------------------------------------------------------- */
+
+.titel {
+  margin: 0 0 var(--s2);
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.einleitung {
+  margin: 0 0 var(--s5);
+  max-width: 68ch;
+  color: var(--text-still);
+}
+
+/* Kopflinie: Kicker in Versalien, darunter die durchgehende Linie. */
+.kopflinie {
+  margin: var(--s6) 0 var(--s4);
+  border-bottom: 1px solid var(--linie-stark);
+  padding-bottom: var(--s1);
+}
+
+.kicker {
+  color: var(--schiefer);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.hinweis {
+  margin: var(--s2) 0;
+  max-width: 68ch;
+  color: var(--text-still);
+  font-size: 13px;
+}
+
+.hinweis.mono {
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.merkliste {
+  margin: 0 0 var(--s4);
+  padding-left: var(--s4);
+  max-width: 68ch;
+  color: var(--text-still);
+  font-size: 14px;
+}
+
+.merkliste li {
+  margin-bottom: var(--s2);
+}
+
+.merkliste strong {
+  color: var(--navy);
+}
+
+/* --- Startkacheln -------------------------------------------------------- */
+
+.kacheln {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1px;
+  background: var(--linie);
+  border-top: 1px solid var(--linie);
+  border-bottom: 1px solid var(--linie);
+}
+
+.kachel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  border: 0;
+  background: var(--flaeche);
+  padding: var(--s5);
+  font: inherit;
+  text-align: left;
+  color: var(--text);
+  cursor: pointer;
+  transition: background var(--dur) var(--ease);
+}
+
+.kachel:hover {
+  background: var(--eis);
+}
+
+.kachel-titel {
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.kachel-text {
+  color: var(--text-still);
+  font-size: 13px;
+}
+
+/* Eine Kopflinie ohne Inhalt darunter zeigt nur eine sinnlose Linie. */
+.kopflinie.leer,
+.kopflinie.leer + .meldungen {
+  display: none;
+}
+
+/* --- Ablaufband ---------------------------------------------------------- */
+
+.ablauf {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s5);
+  margin-bottom: var(--s5);
+  padding-bottom: var(--s2);
+  border-bottom: 1px solid var(--linie);
+  color: var(--schiefer);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* --- Felder und Zeilen --------------------------------------------------- */
 
 .zeile {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  align-items: flex-end;
+  gap: var(--s3);
+  margin-bottom: var(--s3);
 }
 
 .zeile-umbruch {
   flex-wrap: wrap;
-  align-items: flex-end;
 }
 
-.knopf {
+.zeile-still {
+  margin-top: var(--s6);
+  padding-top: var(--s3);
+  border-top: 1px solid var(--linie);
+}
+
+.feld {
+  display: block;
+  margin-bottom: var(--s3);
+}
+
+.feld > span,
+.feld-titel {
+  display: block;
+  margin-bottom: var(--s1);
+  color: var(--schiefer);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.feld > span em {
+  font-style: normal;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  text-transform: none;
+}
+
+.feld-schmal {
+  width: 190px;
+}
+
+.feld-breit {
+  flex: 1;
+  min-width: 220px;
+}
+
+.feld-tage {
+  width: 92px;
+}
+
+input[type='text'],
+input[type='date'],
+input[type='number'],
+select,
+textarea {
+  width: 100%;
+  border: 1px solid var(--linie-stark);
+  background: var(--flaeche);
+  color: var(--navy);
   font: inherit;
-  font-weight: 500;
-  padding: 8px 14px;
-  border-radius: 7px;
-  border: 1px solid var(--rand);
-  background: var(--karte);
-  color: var(--text);
-  cursor: pointer;
+  font-size: 14px;
+  padding: var(--s2) var(--s3);
 }
 
-.knopf:hover:not(:disabled) {
-  border-color: var(--akzent);
+textarea {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  resize: vertical;
 }
 
-.knopf:disabled {
-  opacity: 0.45;
-  cursor: default;
+input::placeholder,
+textarea::placeholder {
+  color: var(--stahl);
 }
 
-.knopf-primaer {
-  background: var(--akzent);
-  border-color: var(--akzent);
-  color: #fff;
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--navy);
 }
 
-.knopf-primaer:hover:not(:disabled) {
-  filter: brightness(1.08);
+input[readonly] {
+  background: var(--eis);
+  color: var(--schiefer);
+}
+
+input.ungueltig {
+  border-color: var(--fehler);
+  background: var(--fehler-flaeche);
+}
+
+input[disabled] {
+  background: var(--grund);
+  color: var(--stahl);
+}
+
+.ordnerzeile {
+  display: flex;
+  gap: var(--s2);
 }
 
 .pfad {
   flex: 1;
   min-width: 0;
+  padding: var(--s2) var(--s3);
+  background: var(--eis);
+  color: var(--schiefer);
   font-family: var(--mono);
-  font-size: 12px;
-  color: var(--gedaempft);
-  background: var(--bg);
-  border: 1px solid var(--rand);
-  border-radius: 6px;
-  padding: 7px 10px;
-  overflow-wrap: anywhere;
-}
-
-.feld {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.feld > span,
-legend {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--gedaempft);
-}
-
-.feld-schmal {
-  max-width: 240px;
-}
-
-input[type='text'],
-input[type='date'],
-select {
-  font: inherit;
-  padding: 7px 9px;
-  border: 1px solid var(--rand);
-  border-radius: 6px;
-  background: var(--karte);
-  color: var(--text);
-  color-scheme: light;
-}
-
-input:focus-visible,
-select:focus-visible,
-.knopf:focus-visible {
-  outline: 2px solid var(--akzent);
-  outline-offset: 1px;
-}
-
-input.ungueltig {
-  border-color: var(--fehler);
-  background: var(--fehler-hell);
-}
-
-.feld-schmal input,
-.feld-schmal select {
-  width: 100%;
-}
-
-.solas {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-  gap: 18px;
-}
-
-.sola {
-  border: 1px solid var(--rand);
-  border-radius: var(--radius);
+  font-size: 12.5px;
   overflow: hidden;
-  min-width: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.sola-kopf {
+.schalterreihe {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2) var(--s5);
+  margin-bottom: var(--s3);
+}
+
+.schalterreihe-hoch {
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+.schalter {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s2);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.schalter input {
+  accent-color: var(--navy);
+}
+
+.schalter em {
+  color: var(--text-still);
+  font-style: normal;
+  font-size: 13px;
+}
+
+/* --- Knöpfe -------------------------------------------------------------- */
+
+.knopf {
+  border: 2px solid var(--navy);
+  background: var(--navy);
+  color: var(--offwhite);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  padding: var(--s2) var(--s4);
+  cursor: pointer;
+  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+
+.knopf:hover:not(:disabled) {
+  background: var(--deep);
+  border-color: var(--deep);
+}
+
+.knopf-still {
+  background: transparent;
+  color: var(--navy);
+  border-color: var(--linie-stark);
+}
+
+.knopf-still:hover:not(:disabled) {
+  background: transparent;
+  border-color: var(--navy);
+}
+
+.knopf-primaer {
+  padding: var(--s3) var(--s5);
+  font-size: 13px;
+}
+
+.knopf-klein {
+  padding: var(--s1) var(--s3);
+  font-size: 11px;
+}
+
+.knopf:disabled {
+  border-color: var(--linie);
+  background: transparent;
+  color: var(--stahl);
+  cursor: not-allowed;
+}
+
+.aktionen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3);
+  margin: var(--s5) 0 var(--s2);
+}
+
+/* --- Projekte (Blöcke der Vorlage) --------------------------------------- */
+
+.projekte {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  gap: 1px;
+  background: var(--linie);
+  border: 1px solid var(--linie);
+}
+
+.projekte.einzeln {
+  grid-template-columns: 1fr;
+}
+
+.projekt {
+  background: var(--flaeche);
+  padding: var(--s4);
+}
+
+.projekt-kopf {
   display: flex;
   align-items: center;
-  gap: 9px;
-  padding: 11px 14px;
-  background: var(--bg);
-  border-bottom: 1px solid var(--rand);
+  gap: var(--s2);
   cursor: pointer;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 800;
 }
 
-.sola-inhalt {
-  display: grid;
-  gap: 16px;
-  padding: 16px 14px;
+.projekt-kopf input {
+  accent-color: var(--navy);
+  width: 16px;
+  height: 16px;
 }
 
-.sola[data-aktiv='false'] .sola-inhalt {
-  opacity: 0.4;
+.projekt-inhalt {
+  margin-top: var(--s3);
+}
+
+.projekt[data-aktiv='false'] .projekt-inhalt {
+  opacity: 0.45;
   pointer-events: none;
 }
 
+.projekt-zeitraum {
+  display: flex;
+  gap: var(--s3);
+}
+
+.projekt-zeitraum .feld {
+  flex: 1;
+}
+
 fieldset {
-  border: 1px solid var(--rand);
-  border-radius: 8px;
-  padding: 10px 12px 12px;
-  margin: 0;
-  min-width: 0;
+  margin: 0 0 var(--s3);
+  border: 0;
+  border-top: 1px solid var(--linie);
+  padding: var(--s2) 0 0;
+}
+
+legend {
+  padding: 0;
+  color: var(--schiefer);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
 .bereiche-liste {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(125px, 1fr));
-  gap: 6px 12px;
-}
-
-.bereiche-liste label,
-.sola-kopf {
-  user-select: none;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: var(--s1) var(--s3);
 }
 
 .bereiche-liste label {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: var(--s2);
+  font-size: 14px;
   cursor: pointer;
 }
 
+.bereiche-liste input {
+  accent-color: var(--navy);
+}
+
 .namen {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  display: flex;
+  gap: var(--s4);
 }
 
-.namen-liste {
-  display: grid;
-  gap: 5px;
-}
-
-.namen-liste input {
-  width: 100%;
-  font-size: 13px;
-  padding: 5px 8px;
+.namen-spalte {
+  flex: 1;
+  min-width: 0;
 }
 
 .namen-spalte[data-frei='false'] {
   opacity: 0.4;
 }
 
-.hinweis {
-  color: var(--gedaempft);
-  font-size: 12.5px;
-  margin: 0;
+.namen-liste {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
 }
 
-/* Der Lightroom-Zielpfad steht auf zwei Zeilen. */
-#lrPfad {
-  white-space: pre-line;
-  margin-top: 12px;
-}
-
-.mono {
-  font-family: var(--mono);
-  overflow-wrap: anywhere;
-}
-
-.meldungen {
-  display: grid;
-  gap: 7px;
-  margin-top: 12px;
-}
-
-.meldungen:empty {
-  margin-top: 0;
-}
-
-.meldung {
-  padding: 9px 12px;
-  border-radius: 7px;
+.namen-liste input {
   font-size: 13px;
-  border: 1px solid transparent;
-  overflow-wrap: anywhere;
+  padding: var(--s1) var(--s2);
 }
 
-.meldung-warnung {
-  background: var(--warnung-hell);
-  border-color: var(--warnung);
-  color: var(--warnung);
-}
-
-.meldung-fehler {
-  background: var(--fehler-hell);
-  border-color: var(--fehler);
-  color: var(--fehler);
-}
-
-.meldung-erfolg {
-  background: var(--erfolg-hell);
-  border-color: var(--erfolg);
-  color: var(--erfolg);
-}
-
-.meldung button {
-  font: inherit;
-  margin-left: 8px;
-  padding: 2px 8px;
-  border-radius: 5px;
-  border: 1px solid currentColor;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-}
+/* --- Vorschau, Meldungen, Ergebnisse ------------------------------------- */
 
 .vorschau {
-  margin-top: 14px;
-  border: 1px solid var(--rand);
-  border-radius: 8px;
-  padding: 10px 12px;
-  background: var(--bg);
+  margin: var(--s3) 0;
+  border-top: 1px solid var(--linie);
 }
 
 .vorschau summary {
-  cursor: pointer;
-  font-weight: 600;
+  padding: var(--s2) 0;
+  color: var(--navy);
   font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 .vorschau pre {
+  max-height: 340px;
+  overflow: auto;
+  margin: 0 0 var(--s3);
+  padding: var(--s3);
+  background: var(--flaeche);
+  border: 1px solid var(--linie);
   font-family: var(--mono);
   font-size: 12px;
   line-height: 1.5;
-  max-height: 340px;
-  overflow: auto;
-  margin: 10px 0 0;
-  color: var(--gedaempft);
+  color: var(--schiefer);
 }
 
-.fuss {
+.mehr {
+  margin: var(--s4) 0;
+  border-top: 1px solid var(--linie);
+}
+
+.mehr > summary {
+  padding: var(--s2) 0;
+  color: var(--navy);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.meldungen {
+  margin: var(--s3) 0;
+}
+
+.meldung {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s3);
+  margin-bottom: var(--s2);
+  padding: var(--s2) var(--s3);
+  border-left: 3px solid var(--stahl);
+  font-size: 13.5px;
+}
+
+.meldung span {
+  flex: 1;
+}
+
+.meldung-erfolg {
+  border-left-color: var(--ok);
+  background: var(--ok-flaeche);
+  color: var(--ok);
+}
+
+.meldung-warnung {
+  border-left-color: var(--warn);
+  background: var(--warn-flaeche);
+  color: var(--warn-text);
+}
+
+.meldung-fehler {
+  border-left-color: var(--fehler);
+  background: var(--fehler-flaeche);
+  color: var(--fehler-text);
+}
+
+.sicherheit {
+  margin: 0 0 var(--s3);
+  max-width: 68ch;
+  color: var(--text-still);
+  font-size: 12.5px;
+}
+
+.fortschritt {
+  min-height: 22px;
+  color: var(--text-still);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.fortschritt-fehler {
+  color: var(--fehler-text);
+  font-weight: 700;
+}
+
+.fortschritt-fertig {
+  color: var(--ok);
+  font-weight: 700;
+}
+
+.zusammenfassung {
   display: flex;
   flex-wrap: wrap;
-  gap: 14px;
-  padding: 16px 28px 26px;
-  color: var(--gedaempft);
+  /* fit-content: die Trennlinie liegt zwischen den Kacheln, nicht als
+     graues Band bis zum Seitenrand. */
+  width: fit-content;
+  max-width: 100%;
+  gap: 1px;
+  margin: var(--s3) 0;
+  background: var(--linie);
+  border: 1px solid var(--linie);
+}
+
+.zusammenfassung:empty {
+  display: none;
+}
+
+.zahlkachel {
+  flex: 0 0 auto;
+  min-width: 128px;
+  background: var(--flaeche);
+  padding: var(--s3) var(--s4);
+}
+
+.zahlkachel .zahl {
+  display: block;
+  font-size: 22px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.zahlkachel .etikett {
+  color: var(--text-still);
   font-size: 12px;
 }
 
-.fuss a {
-  color: var(--akzent);
+.liste {
+  margin: var(--s3) 0 0;
+  padding: 0;
+  max-height: 340px;
+  overflow: auto;
+  list-style: none;
+  border: 1px solid var(--linie);
+  background: var(--flaeche);
 }
 
-/* --- Verwaltung der Lightroom-Vorgaben ---------------------------------- */
-
-.vorgaben {
-  margin-top: 18px;
-  padding-top: 16px;
-  border-top: 1px solid var(--rand);
+.liste:empty {
+  display: none;
 }
 
-.vorgaben-kopf {
+.liste li {
+  padding: var(--s1) var(--s3);
+  border-bottom: 1px solid var(--grund);
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--schiefer);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.liste li.mehr {
+  border-top: 0;
+  color: var(--stahl);
+  font-family: var(--schrift);
+  font-style: italic;
+  text-align: center;
+}
+
+/* --- Editorlisten (Vorlagen und Sachgruppen) ----------------------------- */
+
+.editorliste {
+  margin-bottom: var(--s3);
+}
+
+.editorzeile {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  align-items: baseline;
-  justify-content: space-between;
-  margin-bottom: 8px;
+  align-items: flex-end;
+  gap: var(--s3);
+  margin-bottom: var(--s2);
 }
 
-.vorgaben-kopf h3 {
-  margin: 0;
-  font-size: 13px;
-  font-weight: 600;
+.editorzeile .feld {
+  margin-bottom: 0;
 }
 
-.vorgaben-aktionen {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+.editorblock {
+  margin-bottom: var(--s4);
+  padding: var(--s4);
+  background: var(--flaeche);
+  border-left: 3px solid var(--linie-stark);
 }
 
-/* Breite Tabellen scrollen in sich, damit die Seite nie seitlich scrollt. */
+/* --- Tabelle der Lightroom-Vorgaben -------------------------------------- */
+
 .tabelle-scroll {
-  margin-top: 12px;
   overflow-x: auto;
-  min-width: 0;
-  border: 1px solid var(--rand);
-  border-radius: 8px;
+  border: 1px solid var(--linie);
+  background: var(--flaeche);
 }
 
 .vorgaben-tabelle {
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
-  min-width: 640px;
-}
-
-.vorgaben-tabelle th,
-.vorgaben-tabelle td {
-  text-align: left;
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--rand);
-  vertical-align: middle;
-}
-
-.vorgaben-tabelle tbody tr:last-child th,
-.vorgaben-tabelle tbody tr:last-child td {
-  border-bottom: none;
 }
 
 .vorgaben-tabelle th {
+  background: var(--eis);
+  color: var(--schiefer);
   font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--gedaempft);
-  background: var(--bg);
+  text-align: left;
+  padding: var(--s2) var(--s3);
 }
 
-.spalte-aktiv {
+.vorgaben-tabelle td {
+  padding: var(--s1) var(--s3);
+  border-top: 1px solid var(--linie);
+  vertical-align: middle;
+}
+
+.vorgaben-tabelle .spalte-aktiv {
   width: 52px;
   text-align: center;
 }
 
-.spalte-aktiv input {
-  margin: 0;
-}
-
-.spalte-aktion {
+.vorgaben-tabelle .spalte-aktion {
   width: 110px;
-  text-align: right;
-}
-
-/* Die Tabelle scrollt ohnehin – Dateinamen sollen dann nicht
-   buchstabenweise umbrechen. */
-.vorgaben-tabelle .mono {
-  white-space: nowrap;
-  overflow-wrap: normal;
 }
 
 .vorgaben-tabelle .leer,
-.vorgaben-tabelle .gedaempft {
-  color: var(--gedaempft);
+.gedaempft {
+  color: var(--stahl);
 }
 
 .marke {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 999px;
   font-size: 11px;
-  white-space: nowrap;
-  border: 1px solid var(--rand);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .marke-eigen {
-  background: var(--akzent-hell);
-  border-color: var(--akzent);
-  color: var(--akzent);
+  color: var(--navy);
+}
+
+.marke-mitgeliefert {
+  color: var(--stahl);
 }
 
 .meta-felder {
   display: flex;
-  gap: 6px;
-}
-
-.meta-felder input {
-  font-size: 12px;
-  padding: 4px 7px;
-  min-width: 0;
-  flex: 1;
+  gap: var(--s2);
 }
 
 .meta-felder .kurz {
-  flex: 0 0 68px;
+  width: 74px;
+  flex: none;
 }
 
-.knopf-klein {
-  padding: 4px 10px;
-  font-size: 12px;
-}
-
-/* --- Schmale Fenster ---------------------------------------------------- */
+/* --- Schmale Fenster ----------------------------------------------------- */
 
 @media (max-width: 900px) {
-  .kopf,
-  main,
-  .fuss {
-    padding-left: 18px;
-    padding-right: 18px;
+  .rahmen {
+    flex-direction: column;
   }
 
-  .solas {
+  .seitenleiste {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s1);
+    padding: var(--s2);
+  }
+
+  .nav-kicker {
+    display: none;
+  }
+
+  .nav-knopf {
+    width: auto;
+    border-left: 0;
+    border-bottom: 3px solid transparent;
+    padding: var(--s1) var(--s3);
+    font-size: 13px;
+  }
+
+  .nav-knopf.aktiv {
+    border-left: 0;
+    border-bottom-color: var(--offwhite);
+  }
+
+  main {
+    padding: var(--s4);
+  }
+
+  .projekte {
     grid-template-columns: 1fr;
   }
 }
 
 @media (max-width: 620px) {
-  .kopf {
-    padding-top: 42px;
-  }
-
-  .kopf-aktionen {
-    width: 100%;
-  }
-
-  .kopf-aktionen .knopf {
-    flex: 1;
-  }
-
-  .zeile {
-    flex-wrap: wrap;
-  }
-
-  .pfad {
-    flex-basis: 100%;
-  }
-
-  /* Zwei Namensspalten nebeneinander werden hier zu schmal. */
   .namen {
-    grid-template-columns: 1fr;
+    flex-direction: column;
   }
 
-  .feld-schmal {
-    max-width: none;
-    width: 100%;
+  .projekt-zeitraum {
+    flex-direction: column;
   }
-
-  .vorgaben-aktionen {
-    width: 100%;
-  }
-
-  /* Lieber in zwei Reihen umbrechen als die Beschriftung quetschen. */
-  .vorgaben-aktionen .knopf {
-    flex: 1 0 auto;
-    white-space: nowrap;
-  }
-}
-
-/* Startdatum und Dauer stehen nebeneinander. Oben ausrichten, weil das
-   Datumsfeld durch sein Kalendersymbol höher baut als das Zahlenfeld. */
-.sola-zeitraum {
-  display: grid;
-  grid-template-columns: 1fr 88px;
-  gap: 10px;
-  align-items: start;
-}
-
-.sola-zeitraum input {
-  width: 100%;
-  /* Gleiche Höhe für beide Felder, unabhängig vom eingebauten Symbol. */
-  height: 34px;
-}
-
-.feld-tage input {
-  font-variant-numeric: tabular-nums;
-}
-
-/* --- Import (Abschnitt 5) ------------------------------------------------ */
-
-/* [hidden] muss auch die Flex-Zeilen des Imports sicher ausblenden. */
-[hidden] {
-  display: none !important;
-}
-
-.warn {
-  color: var(--warnung);
-  font-weight: 600;
-}
-
-.import-sola select,
-.import-optionen {
-  font-variant-numeric: tabular-nums;
-}
-
-.import-optionen {
-  gap: 18px;
-}
-
-.wahl {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--text);
-}
-
-.wahl input {
-  margin: 0;
-}
-
-/* Kacheln mit Kennzahlen der Vorschau. */
-.kacheln {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin: 12px 0 4px;
-}
-
-.kachel {
-  display: flex;
-  flex-direction: column;
-  min-width: 96px;
-  padding: 10px 14px;
-  background: var(--akzent-hell);
-  border: 1px solid var(--rand);
-  border-radius: var(--radius);
-}
-
-.kachel .zahl {
-  font-size: 20px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: var(--akzent);
-}
-
-.kachel .etikett {
-  font-size: 12px;
-  color: var(--gedaempft);
 }
 
 /* --- Importfenster ------------------------------------------------------- */
 
 .import-body main {
-  padding-bottom: 24px;
+  max-width: 1120px;
+  margin: 0 auto;
 }
 
 .import-spalten {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: var(--s5);
 }
 
-@media (max-width: 820px) {
-  .import-spalten {
-    grid-template-columns: 1fr;
-  }
+.karte {
+  margin-bottom: var(--s5);
+  background: var(--flaeche);
+  border-top: 3px solid var(--linie-stark);
+  padding: var(--s4);
+}
+
+.karte h2 {
+  margin: 0 0 var(--s3);
+  color: var(--schiefer);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
 }
 
 .geraete {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin: 8px 0;
+  gap: 1px;
+  margin: var(--s3) 0;
+  background: var(--linie);
 }
 
 .geraet {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
   gap: 2px;
-  width: 100%;
-  padding: 10px 12px;
+  border: 0;
+  border-left: 3px solid transparent;
+  background: var(--grund);
+  padding: var(--s2) var(--s3);
+  font: inherit;
   text-align: left;
-  border: 1px solid var(--rand);
-  border-radius: var(--radius);
-  background: var(--karte);
-  color: var(--text);
   cursor: pointer;
+  transition: background var(--dur) var(--ease);
 }
 
 .geraet:hover {
-  border-color: var(--akzent);
+  background: var(--eis);
 }
 
 .geraet.aktiv {
-  border-color: var(--akzent);
-  background: var(--akzent-hell);
+  border-left-color: var(--navy);
+  background: var(--eis);
 }
 
 .geraet-name {
-  font-weight: 600;
+  font-weight: 700;
+  font-size: 14px;
 }
 
 .geraet-info {
-  font-size: 12px;
-  color: var(--gedaempft);
+  color: var(--text-still);
   font-family: var(--mono);
+  font-size: 11.5px;
 }
 
-/* Statusabzeichen im Vergleichsergebnis. */
+.werkzeug-hinweis .warn,
+.hinweis .warn {
+  color: var(--warn-text);
+  font-weight: 700;
+}
+
 .kat {
-  display: inline-block;
-  padding: 1px 8px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .kat-neu {
-  background: var(--erfolg-hell);
-  color: var(--erfolg);
+  color: var(--ok);
 }
 
 .kat-gleich {
-  background: var(--rand);
-  color: var(--gedaempft);
+  color: var(--stahl);
 }
 
 .kat-anders {
-  background: var(--warnung-hell);
-  color: var(--warnung);
-}
-
-.kachel-neu .zahl {
-  color: var(--erfolg);
-}
-
-.kachel-anders .zahl {
-  color: var(--warnung);
-}
-
-.kachel-gleich .zahl {
-  color: var(--gedaempft);
-}
-
-.import-tabelle {
-  max-height: 320px;
-  overflow: auto;
-  margin-top: 8px;
+  color: var(--warn-text);
 }
 
 .spalte-kat {
-  width: 96px;
+  width: 108px;
 }
 
-/* --- Lars Zumpe CI: Kopf und Feinschliff --------------------------------- */
-
-/* Der Fensterkopf trägt die Marke: Deep Navy mit weißer Schrift. */
-.kopf {
-  background: var(--deep);
-  border-bottom: none;
-  color: #fff;
+.import-tabelle {
+  max-height: 380px;
+  overflow-y: auto;
 }
 
-.kopf h1 {
-  color: #fff;
-  font-weight: 700;
-  letter-spacing: 0.01em;
+/* Die drei Kennzahlen des Vergleichs bekommen dieselbe Sprache wie die Status. */
+.zahlkachel-neu .zahl {
+  color: var(--ok);
 }
 
-.kopf-titel p {
+.zahlkachel-gleich .zahl {
   color: var(--stahl);
 }
 
-.version {
-  color: var(--stahl);
+.zahlkachel-anders .zahl {
+  color: var(--warn-text);
 }
 
-/* Knöpfe im dunklen Kopf: heller Rahmen auf Navy, füllen beim Überfahren. */
-.kopf .knopf {
-  background: transparent;
-  border-color: var(--stahl);
-  color: var(--eis);
-}
+/* --- Beispielbaum im Vorlagen-Editor ------------------------------------- */
 
-.kopf .knopf:hover:not(:disabled) {
-  background: var(--eis);
-  border-color: var(--eis);
-  color: var(--navy);
-}
-
-/* Primärknopf im Navy-Ton der CI, mit etwas mehr Gewicht. */
-.knopf-primaer {
-  font-weight: 600;
-}
-
-.knopf-primaer:hover:not(:disabled) {
-  background: var(--deep);
-  filter: none;
-}
-
-/* Kennzahlen-Kacheln: Papierrahmen wie im LZ-Sortierer. */
-.kachel {
-  background: #fff;
-  border-color: var(--eis);
-}
-
-/* ========================================================================= *
- *  Modernisierung & Barrierefreiheit (WCAG AA)                              *
- *  Feinschliff für Abstände, Fokus, Kontrast und Bedienbarkeit.            *
- * ========================================================================= */
-
-body {
+.probe {
+  max-height: 300px;
+  overflow: auto;
+  margin: 0 0 var(--s4);
+  padding: var(--s3);
+  background: var(--flaeche);
+  border-left: 3px solid var(--linie-stark);
+  font-family: var(--mono);
+  font-size: 12px;
   line-height: 1.5;
-  text-rendering: optimizeLegibility;
-}
-
-::selection {
-  background: var(--eis);
-  color: var(--navy);
-}
-
-/* Sichtbarer, konsistenter Fokusring auf allem Bedienbaren – Grundlage der
-   Tastaturbedienung. Auf dem dunklen Kopf hell, sonst kräftiges Blau. */
-a:focus-visible,
-button:focus-visible,
-input:focus-visible,
-select:focus-visible,
-summary:focus-visible,
-[tabindex]:focus-visible,
-.geraet:focus-visible {
-  outline: 3px solid var(--fokus);
-  outline-offset: 2px;
-  border-radius: 6px;
-}
-
-.kopf a:focus-visible,
-.kopf button:focus-visible {
-  outline-color: var(--eis);
-}
-
-/* Weiche Übergänge – nur, wenn die Person keine Reduktion wünscht. */
-@media (prefers-reduced-motion: no-preference) {
-  .knopf,
-  .geraet,
-  input,
-  select,
-  .meldung button,
-  .sola,
-  .kachel {
-    transition: background-color var(--tempo) ease, border-color var(--tempo) ease,
-      color var(--tempo) ease, box-shadow var(--tempo) ease, transform var(--tempo) ease;
-  }
-}
-
-/* --- Layout-Rhythmus ----------------------------------------------------- */
-
-main {
-  gap: var(--s-6);
-  padding: var(--s-6) var(--s-8) var(--s-8);
-}
-
-.karte {
-  padding: var(--s-5) var(--s-6) var(--s-6);
-  box-shadow: var(--schatten);
-}
-
-.karte h2 {
-  margin-bottom: var(--s-5);
-  font-size: 12px;
-  letter-spacing: 0.07em;
   color: var(--schiefer);
-}
-
-/* --- Knöpfe: klare Hierarchie, große Ziele, spürbares Feedback ----------- */
-
-.knopf {
-  min-height: 40px;
-  padding: 9px 16px;
-  border-radius: var(--radius);
-  border-width: 1.5px;
-}
-
-.knopf:hover:not(:disabled) {
-  border-color: var(--navy);
-  background: var(--eis);
-}
-
-.knopf:active:not(:disabled) {
-  transform: translateY(1px);
-}
-
-.knopf-primaer,
-.knopf-primaer:hover:not(:disabled) {
-  color: #fff;
-}
-
-.knopf-primaer {
-  background: var(--navy);
-  border-color: var(--navy);
-  box-shadow: var(--schatten);
-}
-
-.knopf-primaer:hover:not(:disabled) {
-  background: var(--deep);
-  border-color: var(--deep);
-}
-
-/* --- Formularfelder: gleiche Höhe, ruhiger Fokus ------------------------- */
-
-input[type='text'],
-input[type='date'],
-select {
-  min-height: 40px;
-  padding: 9px 11px;
-  border-width: 1.5px;
-}
-
-input[type='text']:hover:not(:disabled),
-select:hover:not(:disabled) {
-  border-color: var(--stahl);
-}
-
-.namen-liste input {
-  min-height: 32px;
-}
-
-/* Beschriftungen etwas kräftiger und mit Luft. */
-.feld > span,
-legend {
-  color: var(--schiefer);
-  letter-spacing: 0.02em;
-}
-
-/* --- Meldungen & Status: AA-taugliche Textfarben ------------------------- */
-
-.meldung {
-  border-width: 1.5px;
-  border-radius: var(--radius);
-  padding: 11px 14px;
-}
-
-.meldung-warnung {
-  color: var(--warnung-text);
-}
-
-.meldung-fehler {
-  color: var(--fehler-text);
-}
-
-.meldung-erfolg {
-  color: var(--erfolg-text);
-}
-
-.warn {
-  color: var(--warnung-text);
-}
-
-.fortschritt,
-[role='status'] {
-  min-height: 20px;
-}
-
-/* --- Kacheln & Statusabzeichen ------------------------------------------ */
-
-.kachel {
-  box-shadow: var(--schatten);
-  border-radius: var(--radius);
-}
-
-.kachel-neu .zahl {
-  color: var(--erfolg-text);
-}
-
-.kachel-anders .zahl {
-  color: var(--warnung-text);
-}
-
-.kat {
-  padding: 2px 10px;
-}
-
-.kat-neu {
-  color: var(--erfolg-text);
-}
-
-.kat-anders {
-  color: var(--warnung-text);
-}
-
-/* --- Gerätekarten: fühlbar anklickbar, klarer aktiver Zustand ----------- */
-
-.geraet {
-  min-height: 52px;
-  box-shadow: var(--schatten);
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .geraet:hover {
-    transform: translateY(-1px);
-    box-shadow: var(--schatten-hover);
-  }
-}
-
-.geraet.aktiv {
-  border-width: 2px;
-  box-shadow: var(--schatten);
-}
-
-/* --- Vergleichstabelle: Zeilen-Hover und Zebra für die Lesbarkeit ------- */
-
-.vorgaben-tabelle tbody tr:nth-child(even) {
-  background: color-mix(in srgb, var(--papier) 55%, #fff);
-}
-
-.import-tabelle tbody tr:hover {
-  background: var(--eis);
-}
-
-.vorgaben-tabelle th {
-  color: var(--schiefer);
-  font-size: 12px;
-  letter-spacing: 0.02em;
-}
-
-/* --- Links: erkennbar und fokussierbar ---------------------------------- */
-
-.fuss a {
-  color: var(--navy);
-  text-underline-offset: 2px;
-}
-
-.fuss a:hover {
-  text-decoration-thickness: 2px;
-}
-
-
-/* Fokusring konsistent über die spezifischere Basisregel legen. */
-.knopf:focus-visible,
-input:focus-visible,
-select:focus-visible {
-  outline: 3px solid var(--fokus);
-  outline-offset: 2px;
-}
-
-.kopf .knopf:focus-visible {
-  outline-color: var(--eis);
-}
-
-/* Kompakte Kontexte behalten ihre schlanke Höhe – die globale Feldhöhe von
-   40px gilt nur den Hauptformularfeldern, nicht Listen und Tabellenzellen. */
-.namen-liste input {
-  min-height: 34px;
-  padding: 6px 9px;
-}
-
-.meta-felder input {
-  min-height: 30px;
-  padding: 4px 8px;
-}
-
-.knopf-klein {
-  min-height: 30px;
-  padding: 5px 12px;
 }

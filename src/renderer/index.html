@@ -8,80 +8,420 @@
   </head>
   <body>
     <header class="kopf">
+      <img class="kopf-signet" src="signet.png" alt="Lars Zumpe Medienproduktion" width="34" height="34" />
       <div class="kopf-titel">
         <h1>LZ Ordnerstruktur</h1>
-        <p>Ordner anlegen und Fotos und Videos direkt einsortieren — für macOS und Windows.</p>
+        <p>Ordner anlegen, Fotos einsortieren, aufräumen — privat und fürs Sola.</p>
       </div>
-      <div class="kopf-aktionen">
-        <button type="button" id="btnLaden" class="knopf knopf-still">Konfiguration laden</button>
-        <button type="button" id="btnSpeichern" class="knopf knopf-still">Konfiguration speichern</button>
-        <span class="version" id="version"></span>
-      </div>
+      <span class="version" id="version"></span>
     </header>
 
-    <main>
-      <section class="karte">
-        <h2>1 · Zielordner</h2>
-        <div class="zeile">
-          <button type="button" id="btnPfad" class="knopf">Ordner wählen …</button>
-          <code class="pfad" id="pfadAnzeige">Noch kein Ordner gewählt</code>
-        </div>
-        <label class="feld feld-schmal">
-          <span>Solajahr</span>
-          <input type="text" id="jahr" placeholder="automatisch aus dem Startdatum" inputmode="numeric" />
-        </label>
-      </section>
+    <div class="rahmen">
+      <nav class="seitenleiste" aria-label="Bereiche">
+        <p class="nav-kicker">Übersicht</p>
+        <button type="button" class="nav-knopf aktiv" data-ansicht="start">Start</button>
 
-      <section class="karte">
-        <h2>2 · Solas und Bereiche</h2>
-        <div class="solas" id="solas"><!-- wird aus renderer.js aufgebaut --></div>
-      </section>
+        <p class="nav-kicker">Ordner anlegen</p>
+        <button type="button" class="nav-knopf" data-ansicht="struktur">Ordnerstruktur</button>
+        <button type="button" class="nav-knopf" data-ansicht="vorlagen">Vorlage bearbeiten</button>
 
-      <section class="karte">
-        <h2>3 · Ordnerstruktur anlegen</h2>
-        <div class="zeile zeile-umbruch">
-          <button type="button" id="btnVorschau" class="knopf knopf-still">Vorschau aktualisieren</button>
-          <button type="button" id="btnErstellen" class="knopf knopf-primaer" disabled>Ordnerstruktur erstellen</button>
-          <span class="hinweis" id="planInfo" aria-live="polite"></span>
-        </div>
-        <div class="meldungen" id="meldungen" role="status" aria-live="polite"></div>
-        <details class="vorschau" id="vorschauBox">
-          <summary>Vorschau <span id="vorschauAnzahl"></span></summary>
-          <pre id="vorschauBaum"></pre>
-        </details>
-      </section>
+        <p class="nav-kicker">Einsortieren</p>
+        <button type="button" class="nav-knopf" data-ansicht="import">Von Kamera oder SD-Karte</button>
+        <button type="button" class="nav-knopf" data-ansicht="fotos">Fotos &amp; Videos</button>
+        <button type="button" class="nav-knopf" data-ansicht="dokumente">Dokumente</button>
 
-      <section class="karte">
-        <h2>4 · Lightroom-Vorgaben installieren</h2>
-        <p class="hinweis">
-          Kopiert alle angewählten Vorgaben in den Lightroom-Classic-Ordner und trägt Jahr, Sola
-          und Kürzel in die Exportvorgaben ein. Lightroom danach neu starten.
-        </p>
-        <div class="zeile zeile-umbruch">
-          <label class="feld feld-schmal">
-            <span>Kürzel</span>
-            <input type="text" id="kuerzel" placeholder="z. B. M.U." />
+        <p class="nav-kicker">Aufräumen</p>
+        <button type="button" class="nav-knopf" data-ansicht="duplikate">Doppelte Dateien</button>
+        <button type="button" class="nav-knopf" data-ansicht="aufraeumen">Überflüssiges</button>
+
+        <p class="nav-kicker">Mehr</p>
+        <button type="button" class="nav-knopf" data-ansicht="lightroom">Lightroom-Vorgaben</button>
+        <button type="button" class="nav-knopf" data-ansicht="hilfe">Hilfe &amp; Einstellungen</button>
+      </nav>
+
+      <main>
+        <!-- ------------------------------------------------------------ -->
+        <section class="ansicht aktiv" id="ansicht-start">
+          <h2 class="titel">Was möchtest du tun?</h2>
+          <p class="einleitung">
+            Alles läuft auf deinem Rechner — nichts wird ins Internet geladen. Jede Aufgabe zeigt
+            zuerst eine Vorschau; erst danach passiert etwas.
+          </p>
+
+          <div class="kacheln">
+            <button type="button" class="kachel" data-ansicht="struktur">
+              <span class="kachel-titel">Ordnerstruktur anlegen</span>
+              <span class="kachel-text">Einen fertigen Ordnerbaum erzeugen — nach einer Vorlage, die du selbst anpassen kannst.</span>
+            </button>
+            <button type="button" class="kachel" data-ansicht="import">
+              <span class="kachel-titel">Von Kamera einlesen</span>
+              <span class="kachel-text">Speicherkarte anstecken, vergleichen, und nur das kopieren, was noch fehlt.</span>
+            </button>
+            <button type="button" class="kachel" data-ansicht="fotos">
+              <span class="kachel-titel">Fotos einsortieren</span>
+              <span class="kachel-text">Vorhandene Fotos und Videos nach ihrem Aufnahmedatum in Ordner einsortieren.</span>
+            </button>
+            <button type="button" class="kachel" data-ansicht="dokumente">
+              <span class="kachel-titel">Dokumente einsortieren</span>
+              <span class="kachel-text">PDF, Word und Excel nach Inhalt in Sachgruppen ablegen — Rechnungen, Verträge, Schule …</span>
+            </button>
+            <button type="button" class="kachel" data-ansicht="duplikate">
+              <span class="kachel-titel">Doppelte Dateien finden</span>
+              <span class="kachel-text">Inhaltsgleiche Dateien aufspüren. Eine Fassung bleibt immer erhalten.</span>
+            </button>
+            <button type="button" class="kachel" data-ansicht="aufraeumen">
+              <span class="kachel-titel">Überflüssiges entfernen</span>
+              <span class="kachel-text">Album-Cover, App-Icons, leere Dateien und Video-Bruchstücke loswerden.</span>
+            </button>
+          </div>
+
+          <div class="kopflinie leer" id="startKopf"><span class="kicker">Zu beachten</span></div>
+          <div class="meldungen" id="startHinweise"></div>
+        </section>
+
+        <!-- ------------------------------------------------------------ -->
+        <section class="ansicht" id="ansicht-struktur">
+          <h2 class="titel">Ordnerstruktur anlegen</h2>
+          <p class="einleitung">
+            Wähle eine Vorlage, fülle aus, was dazugehört, und lege den ganzen Baum auf einmal an.
+            Vorhandene Ordner bleiben unangetastet — du kannst jederzeit nachträglich ergänzen.
+          </p>
+
+          <div class="kopflinie"><span class="kicker">1 · Vorlage</span></div>
+          <div class="zeile zeile-umbruch">
+            <label class="feld feld-breit">
+              <span>Vorlage</span>
+              <select id="vorlageWahl"></select>
+            </label>
+            <button type="button" id="btnVorlageBearbeiten" class="knopf knopf-still">Vorlage anpassen …</button>
+          </div>
+          <p class="hinweis" id="vorlageBeschreibung"></p>
+
+          <div class="kopflinie"><span class="kicker">2 · Wohin</span></div>
+          <div class="zeile zeile-umbruch">
+            <button type="button" id="btnPfad" class="knopf">Zielordner wählen …</button>
+            <code class="pfad" id="pfadAnzeige">Noch kein Ordner gewählt</code>
+          </div>
+          <div class="zeile zeile-umbruch">
+            <label class="feld feld-schmal" id="feldJahr">
+              <span>Jahr</span>
+              <input type="text" id="jahr" placeholder="automatisch aus dem Startdatum" inputmode="numeric" />
+            </label>
+            <label class="feld feld-breit" id="feldName">
+              <span>Name des Hauptordners</span>
+              <input type="text" id="projektName" placeholder="z. B. Hochzeit Meier" />
+            </label>
+            <span class="hinweis" id="wurzelInfo"></span>
+          </div>
+
+          <div class="kopflinie"><span class="kicker">3 · Inhalt</span></div>
+          <div class="projekte" id="projekte"></div>
+
+          <div class="kopflinie"><span class="kicker">4 · Anlegen</span></div>
+          <div class="zeile zeile-umbruch">
+            <button type="button" id="btnVorschau" class="knopf knopf-still">Vorschau aktualisieren</button>
+            <button type="button" id="btnErstellen" class="knopf knopf-primaer" disabled>Ordner jetzt anlegen</button>
+            <span class="hinweis" id="planInfo" aria-live="polite"></span>
+          </div>
+          <div class="meldungen" id="meldungen" role="status" aria-live="polite"></div>
+          <details class="vorschau" id="vorschauBox">
+            <summary>Vorschau des Ordnerbaums <span id="vorschauAnzahl"></span></summary>
+            <pre id="vorschauBaum"></pre>
+          </details>
+
+          <div class="zeile zeile-umbruch zeile-still">
+            <button type="button" id="btnLaden" class="knopf knopf-klein knopf-still">Einstellungen laden …</button>
+            <button type="button" id="btnSpeichern" class="knopf knopf-klein knopf-still">Einstellungen speichern …</button>
+          </div>
+        </section>
+
+        <!-- ------------------------------------------------------------ -->
+        <section class="ansicht" id="ansicht-vorlagen">
+          <h2 class="titel">Vorlage bearbeiten</h2>
+          <p class="einleitung">
+            Hier legst du fest, wie der Ordnerbaum aussieht. Änderungen an einer mitgelieferten
+            Vorlage landen automatisch in einer eigenen Kopie — die Originale bleiben erhalten.
+          </p>
+
+          <div class="zeile zeile-umbruch">
+            <label class="feld feld-breit">
+              <span>Vorlage</span>
+              <select id="editorWahl"></select>
+            </label>
+            <button type="button" id="btnVorlageNeu" class="knopf knopf-still">Neue Vorlage …</button>
+            <button type="button" id="btnVorlageLoeschen" class="knopf knopf-still">Löschen</button>
+          </div>
+
+          <div class="kopflinie"><span class="kicker">Grundsätzliches</span></div>
+          <div class="zeile zeile-umbruch">
+            <label class="feld feld-breit">
+              <span>Name der Vorlage</span>
+              <input type="text" id="editorName" />
+            </label>
+            <label class="feld feld-breit">
+              <span>Hauptordner <em>({jahr} und {name} werden ersetzt)</em></span>
+              <input type="text" id="editorWurzel" placeholder="z. B. {jahr}_{name}" />
+            </label>
+            <label class="feld feld-tage">
+              <span>Tage</span>
+              <input type="number" id="editorTage" min="1" max="31" step="1" />
+            </label>
+          </div>
+          <label class="feld feld-breit">
+            <span>Kurze Beschreibung</span>
+            <input type="text" id="editorBeschreibung" />
           </label>
-          <label class="feld feld-schmal">
-            <span>Sola</span>
-            <select id="presetSola"></select>
-          </label>
-          <label class="feld feld-schmal">
-            <span>Jahr (2-stellig)</span>
-            <input type="text" id="presetJahr" inputmode="numeric" maxlength="2" />
-          </label>
-          <button type="button" id="btnPresets" class="knopf" disabled>Vorgaben installieren</button>
-        </div>
-        <div class="meldungen" id="presetMeldungen"></div>
+          <div class="schalterreihe">
+            <label class="schalter"><input type="checkbox" id="editorJahr" /> Nach einem Jahr fragen</label>
+            <label class="schalter"><input type="checkbox" id="editorNameNutzen" /> Nach einem Namen fragen</label>
+            <label class="schalter"><input type="checkbox" id="editorNummern" /> Bereiche durchnummerieren (01_, 02_ …)</label>
+          </div>
 
-        <div class="vorgaben">
-          <div class="vorgaben-kopf">
-            <h3>Verfügbare Vorgaben</h3>
-            <div class="vorgaben-aktionen">
-              <button type="button" id="btnPresetAdd" class="knopf">Vorgabe hinzufügen …</button>
-              <button type="button" id="btnPresetReset" class="knopf knopf-still">Zurücksetzen</button>
-              <button type="button" id="btnPresetOrdner" class="knopf knopf-still">Ordner öffnen</button>
+          <div class="kopflinie"><span class="kicker">Blöcke unter dem Hauptordner</span></div>
+          <p class="hinweis">Beim Sola sind das Teens, Kids, SOFA und Sola next. Privat genügt meist einer — mit leerem Ordnernamen liegt alles direkt im Hauptordner.</p>
+          <div class="editorliste" id="editorProjekte"></div>
+          <button type="button" id="btnProjektNeu" class="knopf knopf-klein knopf-still">Block hinzufügen</button>
+
+          <div class="kopflinie"><span class="kicker">Namenslisten</span></div>
+          <p class="hinweis">Personen, die eigene Ordner bekommen — etwa Fotograf:innen. Ohne Namensliste kommt die Vorlage auch aus.</p>
+          <div class="editorliste" id="editorListen"></div>
+          <button type="button" id="btnListeNeu" class="knopf knopf-klein knopf-still">Namensliste hinzufügen</button>
+
+          <div class="kopflinie"><span class="kicker">Bereiche</span></div>
+          <p class="hinweis">Was ein Block enthalten kann. Unterordner jeweils einen pro Zeile.</p>
+          <div class="editorliste" id="editorBereiche"></div>
+          <button type="button" id="btnBereichNeu" class="knopf knopf-klein knopf-still">Bereich hinzufügen</button>
+
+          <div class="kopflinie"><span class="kicker">So sieht das aus</span></div>
+          <p class="hinweis">
+            Beispielbaum mit allen Bereichen, zwei Namen je Liste und drei Tagen — damit sichtbar
+            wird, was die Vorlage kann. Beim Anlegen zählt dann, was du wirklich anhakst.
+          </p>
+          <pre class="probe" id="editorProbe"></pre>
+
+          <div class="kopflinie"><span class="kicker">Sichern</span></div>
+          <div class="zeile zeile-umbruch">
+            <button type="button" id="btnVorlageSpeichern" class="knopf knopf-primaer">Vorlage speichern</button>
+            <button type="button" id="btnVorlageKopie" class="knopf knopf-still">Als neue Vorlage speichern …</button>
+            <button type="button" id="btnVorlageVerwerfen" class="knopf knopf-still">Änderungen verwerfen</button>
+          </div>
+          <div class="meldungen" id="vorlagenMeldungen" role="status" aria-live="polite"></div>
+        </section>
+
+        <!-- ------------------------------------------------------------ -->
+        <section class="ansicht" id="ansicht-import">
+          <h2 class="titel">Von Kamera oder SD-Karte einlesen</h2>
+          <p class="einleitung">
+            Kamera, Kartenleser oder Speicherkarte anstecken und direkt in die richtigen Ordner
+            kopieren — ohne Umweg über Finder oder Explorer. Das Importfenster erkennt den
+            Datenträger, vergleicht zuerst mit dem Ziel (neu · schon vorhanden · abweichend) und
+            kopiert dann nur, was fehlt. Die Karte bleibt dabei unangetastet.
+          </p>
+          <div class="ablauf">
+            <span>1 · Karte wählen</span><span>2 · Ziel wählen</span><span>3 · Vergleichen</span><span>4 · Kopieren</span>
+          </div>
+          <div class="zeile">
+            <button type="button" id="btnImportFenster" class="knopf knopf-primaer">Importfenster öffnen …</button>
+          </div>
+          <p class="hinweis">
+            Ziel ist entweder die oben angelegte Ordnerstruktur oder ein reiner Datumsbaum
+            (<code>JJJJ/JJJJMM/JJJJMMDD</code>) — das lässt sich im Importfenster umstellen.
+          </p>
+        </section>
+
+        <!-- ------------------------------------------------------------ -->
+        <section class="ansicht aufgabe" id="ansicht-fotos" data-aufgabe="fotos">
+          <h2 class="titel">Fotos &amp; Videos einsortieren</h2>
+          <p class="einleitung">
+            Bringt vorhandene Fotos und Videos nach ihrem Aufnahmedatum in Ordner. Das Datum kommt
+            aus den Aufnahmedaten der Kamera, sonst aus dem Dateinamen, sonst aus dem Änderungsdatum
+            der Datei.
+          </p>
+          <div class="ablauf"><span>1 · Ordner wählen</span><span>2 · Vorschau</span><span>3 · Einsortieren</span></div>
+
+          <div class="feld">
+            <span class="feld-titel">Woher kommen die Dateien?</span>
+            <div class="ordnerzeile">
+              <input type="text" data-rolle="quelle" placeholder="Ordner mit den Fotos wählen …" readonly />
+              <button type="button" class="knopf knopf-still waehlen" data-rolle="quelle">Wählen …</button>
             </div>
+          </div>
+          <div class="feld">
+            <span class="feld-titel">Wohin sollen sie?</span>
+            <div class="ordnerzeile">
+              <input type="text" data-rolle="ziel" placeholder="Leer lassen = in denselben Ordner" readonly />
+              <button type="button" class="knopf knopf-still waehlen" data-rolle="ziel">Wählen …</button>
+            </div>
+          </div>
+
+          <label class="feld feld-breit">
+            <span>Ordnerschema</span>
+            <select data-opt="schema" id="fotoSchema"></select>
+          </label>
+
+          <details class="mehr">
+            <summary>Mehr Einstellungen</summary>
+            <div class="schalterreihe schalterreihe-hoch">
+              <label class="schalter"><input type="checkbox" data-opt="umbenennen" checked /> Dateien umbenennen in <code>JJJJMMDD_HHMMSS</code></label>
+              <label class="schalter"><input type="checkbox" data-opt="getrennt" /> Fotos und Videos in getrennte Ordner</label>
+              <label class="schalter"><input type="checkbox" data-opt="kopieren" /> Kopieren statt verschieben (Originale bleiben liegen)</label>
+            </div>
+            <label class="feld feld-breit">
+              <span>Zusätzlicher Unterordner (z. B. <code>_Handy</code>)</span>
+              <input type="text" data-opt="unterordner" placeholder="leer lassen = keiner" />
+            </label>
+          </details>
+
+          <div class="aktionen">
+            <button type="button" class="knopf knopf-still pruefen">Vorschau erstellen</button>
+            <button type="button" class="knopf knopf-primaer ausfuehren" disabled>Einsortieren</button>
+          </div>
+          <p class="sicherheit">Nichts wird überschrieben: gibt es den Namen schon, wird durchnummeriert. Jeder Lauf schreibt ein Protokoll.</p>
+          <div class="fortschritt" aria-live="polite"></div>
+          <div class="zusammenfassung"></div>
+          <ul class="liste"></ul>
+        </section>
+
+        <!-- ------------------------------------------------------------ -->
+        <section class="ansicht aufgabe" id="ansicht-dokumente" data-aufgabe="dokumente">
+          <h2 class="titel">Dokumente einsortieren</h2>
+          <p class="einleitung">
+            Legt PDF-, Word-, Excel- und PowerPoint-Dateien nach ihrem Inhalt in Sachgruppen ab und
+            benennt sie nach ihrer Überschrift. Keine KI — gezählt werden Stichwörter im Text, und
+            bei Gleichstand landet die Datei in <code>Unsortiert</code>.
+          </p>
+          <div class="ablauf"><span>1 · Ordner wählen</span><span>2 · Vorschau</span><span>3 · Einsortieren</span></div>
+
+          <div class="feld">
+            <span class="feld-titel">Woher kommen die Dokumente?</span>
+            <div class="ordnerzeile">
+              <input type="text" data-rolle="quelle" placeholder="Ordner mit den Dokumenten wählen …" readonly />
+              <button type="button" class="knopf knopf-still waehlen" data-rolle="quelle">Wählen …</button>
+            </div>
+          </div>
+          <div class="feld">
+            <span class="feld-titel">Wohin sollen sie?</span>
+            <div class="ordnerzeile">
+              <input type="text" data-rolle="ziel" placeholder="Leer lassen = in denselben Ordner" readonly />
+              <button type="button" class="knopf knopf-still waehlen" data-rolle="ziel">Wählen …</button>
+            </div>
+          </div>
+
+          <details class="mehr">
+            <summary>Mehr Einstellungen</summary>
+            <div class="schalterreihe schalterreihe-hoch">
+              <label class="schalter"><input type="checkbox" data-opt="umbenennen" checked /> Nach der Überschrift im Dokument umbenennen</label>
+              <label class="schalter"><input type="checkbox" data-opt="kopieren" /> Kopieren statt verschieben</label>
+            </div>
+            <div class="kopflinie"><span class="kicker">Sachgruppen</span></div>
+            <p class="hinweis">Ordnername und die Stichwörter, an denen er erkannt wird. Stichwörter durch Komma trennen, klein und ohne Umlaute.</p>
+            <div class="editorliste" id="gruppenListe"></div>
+            <div class="zeile zeile-umbruch">
+              <button type="button" id="btnGruppeNeu" class="knopf knopf-klein knopf-still">Gruppe hinzufügen</button>
+              <button type="button" id="btnGruppenZurueck" class="knopf knopf-klein knopf-still">Auf Standard zurücksetzen</button>
+            </div>
+          </details>
+
+          <div class="aktionen">
+            <button type="button" class="knopf knopf-still pruefen">Vorschau erstellen</button>
+            <button type="button" class="knopf knopf-primaer ausfuehren" disabled>Einsortieren</button>
+          </div>
+          <p class="sicherheit">Nichts wird überschrieben. Was sich nicht eindeutig zuordnen lässt, kommt nach <code>Unsortiert</code>.</p>
+          <div class="fortschritt" aria-live="polite"></div>
+          <div class="zusammenfassung"></div>
+          <ul class="liste"></ul>
+        </section>
+
+        <!-- ------------------------------------------------------------ -->
+        <section class="ansicht aufgabe" id="ansicht-duplikate" data-aufgabe="duplikate">
+          <h2 class="titel">Doppelte Dateien finden</h2>
+          <p class="einleitung">
+            Sucht Dateien mit gleichem Inhalt — auch wenn sie anders heißen. Verglichen wird über
+            eine Prüfsumme über die ganze Datei, nicht über den Namen. Entfernt wird immer nur die
+            Kopie; eine Fassung bleibt erhalten.
+          </p>
+          <div class="ablauf"><span>1 · Ordner wählen</span><span>2 · Suchen</span><span>3 · Kopien entfernen</span></div>
+
+          <div class="feld">
+            <span class="feld-titel">Welchen Ordner durchsuchen?</span>
+            <div class="ordnerzeile">
+              <input type="text" data-rolle="quelle" placeholder="Ordner wählen …" readonly />
+              <button type="button" class="knopf knopf-still waehlen" data-rolle="quelle">Wählen …</button>
+            </div>
+          </div>
+
+          <div class="aktionen">
+            <button type="button" class="knopf knopf-still pruefen">Doppelte suchen</button>
+            <button type="button" class="knopf knopf-primaer ausfuehren" disabled>Kopien entfernen</button>
+          </div>
+          <p class="sicherheit">Je Gruppe bleibt immer eine Datei liegen — es kann nichts doppelt verloren gehen.</p>
+          <div class="fortschritt" aria-live="polite"></div>
+          <div class="zusammenfassung"></div>
+          <ul class="liste"></ul>
+        </section>
+
+        <!-- ------------------------------------------------------------ -->
+        <section class="ansicht aufgabe" id="ansicht-aufraeumen" data-aufgabe="aufraeumen">
+          <h2 class="titel">Überflüssiges entfernen</h2>
+          <p class="einleitung">
+            Findet Dateien, die beim Sichern von Handy oder Rechner anfallen und niemand braucht:
+            Album-Cover aus Musikordnern, App-Icons, Zwischenspeicher, abgebrochene Videos und
+            leere Dateien. Echte Fotos werden nicht angetastet.
+          </p>
+          <div class="ablauf"><span>1 · Ordner wählen</span><span>2 · Suchen</span><span>3 · Entfernen</span></div>
+
+          <div class="feld">
+            <span class="feld-titel">Welchen Ordner durchsuchen?</span>
+            <div class="ordnerzeile">
+              <input type="text" data-rolle="quelle" placeholder="Ordner wählen …" readonly />
+              <button type="button" class="knopf knopf-still waehlen" data-rolle="quelle">Wählen …</button>
+            </div>
+          </div>
+
+          <div class="feld">
+            <span class="feld-titel">Wonach soll gesucht werden?</span>
+            <div class="schalterreihe schalterreihe-hoch" id="kategorienListe"></div>
+          </div>
+
+          <div class="aktionen">
+            <button type="button" class="knopf knopf-still pruefen">Suchen</button>
+            <button type="button" class="knopf knopf-primaer ausfuehren" disabled>Entfernen</button>
+          </div>
+          <p class="sicherheit">Vorher steht jede einzelne Datei in der Liste. Nichts wird ohne diesen Blick entfernt.</p>
+          <div class="fortschritt" aria-live="polite"></div>
+          <div class="zusammenfassung"></div>
+          <ul class="liste"></ul>
+        </section>
+
+        <!-- ------------------------------------------------------------ -->
+        <section class="ansicht" id="ansicht-lightroom">
+          <h2 class="titel">Lightroom-Vorgaben installieren</h2>
+          <p class="einleitung">
+            Kopiert alle angewählten Vorgaben in den Ordner von Lightroom Classic und trägt Jahr,
+            Anlass und Kürzel in die Exportvorgaben ein. Lightroom danach neu starten.
+          </p>
+          <div class="zeile zeile-umbruch">
+            <label class="feld feld-schmal">
+              <span>Kürzel</span>
+              <input type="text" id="kuerzel" placeholder="z. B. M.U." />
+            </label>
+            <label class="feld feld-schmal">
+              <span>Anlass</span>
+              <select id="presetSola"></select>
+            </label>
+            <label class="feld feld-schmal">
+              <span>Jahr (2-stellig)</span>
+              <input type="text" id="presetJahr" inputmode="numeric" maxlength="2" />
+            </label>
+            <button type="button" id="btnPresets" class="knopf knopf-primaer" disabled>Vorgaben installieren</button>
+          </div>
+          <div class="meldungen" id="presetMeldungen"></div>
+
+          <div class="kopflinie"><span class="kicker">Verfügbare Vorgaben</span></div>
+          <div class="zeile zeile-umbruch">
+            <button type="button" id="btnPresetAdd" class="knopf knopf-still">Vorgabe hinzufügen …</button>
+            <button type="button" id="btnPresetReset" class="knopf knopf-still">Zurücksetzen</button>
+            <button type="button" id="btnPresetOrdner" class="knopf knopf-still">Ordner öffnen</button>
           </div>
           <p class="hinweis">
             Eigene <code>.lrtemplate</code>- und <code>.xmp</code>-Dateien lassen sich hier hinzufügen. Eine eigene
@@ -102,61 +442,77 @@
               <tbody id="vorgabenListe"></tbody>
             </table>
           </div>
-        </div>
+          <p class="hinweis mono" id="lrPfad"></p>
+        </section>
 
-        <p class="hinweis mono" id="lrPfad"></p>
-      </section>
+        <!-- ------------------------------------------------------------ -->
+        <section class="ansicht" id="ansicht-hilfe">
+          <h2 class="titel">Hilfe &amp; Einstellungen</h2>
 
-      <section class="karte">
-        <h2>5 · Fotos und Videos importieren</h2>
-        <p class="hinweis">
-          Kamera, Kartenleser oder SD-Karte anstecken und direkt in die richtigen Ordner kopieren —
-          ohne Umweg über Finder oder Explorer. Das Importfenster erkennt den Datenträger, vergleicht
-          zuerst mit dem Ziel (neu · schon vorhanden · abweichend) und kopiert dann nur, was fehlt.
-        </p>
-        <div class="zeile">
-          <button type="button" id="btnImportFenster" class="knopf knopf-primaer">Importfenster öffnen …</button>
-        </div>
-      </section>
-    </main>
+          <div class="kopflinie"><span class="kicker">Sicherheit</span></div>
+          <ul class="merkliste">
+            <li><strong>Erst Vorschau, dann Ausführen.</strong> Jede Aufgabe zeigt zuerst, was sie tun würde.</li>
+            <li><strong>Nichts wird überschrieben.</strong> Bei gleichem Namen wird durchnummeriert (<code>_1</code>, <code>_2</code> …).</li>
+            <li><strong>Protokoll.</strong> Jeder Lauf schreibt mit, was er getan hat — im Zielordner unter <code>_Sortier-Protokolle</code>.</li>
+            <li><strong>Alles bleibt lokal.</strong> Die App hat keine Internetverbindung.</li>
+          </ul>
 
-    <footer class="fuss">
-      <span>Nachbau des Windows-Originals von Thorben Renfordt für macOS und Windows.</span>
-      <a href="#" data-link="https://github.com/TH0RB3Nger/SOLA_Ordnerstrucktur">Original-Projekt</a>
-      <a href="#" data-link="https://www.instagram.com/sola_wiedenest/">Sola Wiedenest</a>
-    </footer>
+          <div class="zeile">
+            <label class="schalter">
+              <input type="checkbox" id="optPapierkorb" checked />
+              Entfernte Dateien in den Papierkorb legen statt endgültig löschen
+            </label>
+          </div>
 
-    <template id="solaVorlage">
-      <article class="sola">
-        <label class="sola-kopf">
-          <input type="checkbox" class="sola-aktiv" />
-          <span class="sola-titel"></span>
+          <div class="kopflinie"><span class="kicker">Hilfsprogramme</span></div>
+          <p class="hinweis">
+            Beide sind freiwillig — ohne sie arbeitet die App weiter, weiß aber weniger über die Dateien.
+          </p>
+          <div class="meldungen" id="werkzeugStand"></div>
+
+          <div class="kopflinie"><span class="kicker">Zurücksetzen</span></div>
+          <div class="zeile zeile-umbruch">
+            <button type="button" id="btnEinstellungenZurueck" class="knopf knopf-still">Einstellungen zurücksetzen</button>
+            <span class="hinweis">Setzt gemerkte Ordner, Optionen und Sachgruppen auf den Auslieferungszustand. Eigene Vorlagen bleiben erhalten.</span>
+          </div>
+          <div class="meldungen" id="hilfeMeldungen" role="status" aria-live="polite"></div>
+
+          <div class="kopflinie"><span class="kicker">Über</span></div>
+          <p class="hinweis">
+            LZ Ordnerstruktur — Lars Zumpe Medienproduktion. Der Sola-Teil geht auf das Windows-Programm
+            von Thorben Renfordt zurück, das Einsortieren und Aufräumen auf den LZ Sortierer.
+          </p>
+          <div class="zeile zeile-umbruch">
+            <a href="#" data-link="https://github.com/larszu/LZ-Ordnerstruktur">Projekt auf GitHub</a>
+            <a href="#" data-link="https://zumpelars.de">zumpelars.de</a>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- Bausteine, die die Oberfläche vervielfältigt ------------------- -->
+    <template id="projektVorlage">
+      <article class="projekt">
+        <label class="projekt-kopf">
+          <input type="checkbox" class="projekt-aktiv" />
+          <span class="projekt-titel"></span>
         </label>
-        <div class="sola-inhalt">
-          <div class="sola-zeitraum">
+        <div class="projekt-inhalt">
+          <div class="projekt-zeitraum">
             <label class="feld">
               <span>Startdatum (Tag 1)</span>
-              <input type="date" class="sola-start" />
+              <input type="date" class="projekt-start" />
             </label>
             <label class="feld feld-tage">
               <span>Tage</span>
-              <input type="number" class="sola-tage" inputmode="numeric" step="1" />
+              <input type="number" class="projekt-tage" inputmode="numeric" step="1" />
             </label>
           </div>
           <fieldset class="bereiche">
             <legend>Bereiche</legend>
             <div class="bereiche-liste"></div>
           </fieldset>
-          <div class="namen">
-            <fieldset class="namen-spalte" data-rolle="fotografen">
-              <legend>Fotograf:innen</legend>
-              <div class="namen-liste"></div>
-            </fieldset>
-            <fieldset class="namen-spalte" data-rolle="videografen">
-              <legend>Videograf:innen</legend>
-              <div class="namen-liste"></div>
-            </fieldset>
-          </div>
+          <div class="namen"></div>
         </div>
       </article>
     </template>

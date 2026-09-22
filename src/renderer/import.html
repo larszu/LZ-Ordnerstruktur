@@ -8,6 +8,7 @@
   </head>
   <body class="import-body">
     <header class="kopf">
+      <img class="kopf-signet" src="signet.png" alt="Lars Zumpe Medienproduktion" width="34" height="34" />
       <div class="kopf-titel">
         <h1>Fotos und Videos importieren</h1>
         <p>Kamera, Kartenleser oder SD-Karte anstecken — vergleichen, dann kopieren.</p>
@@ -37,7 +38,7 @@
           <p class="hinweis" id="schemaInfo"></p>
 
           <div class="zeile zeile-umbruch import-sola" id="solaFelder">
-            <label class="feld feld-schmal"><span>Sola</span><select id="sola"></select></label>
+            <label class="feld feld-schmal"><span>Block</span><select id="sola"></select></label>
             <label class="feld feld-schmal"><span>Bereich</span><select id="bereich"></select></label>
             <label class="feld feld-schmal"><span>Person</span><select id="person"></select></label>
           </div>
@@ -48,9 +49,9 @@
           </div>
 
           <div class="zeile zeile-umbruch import-optionen">
-            <label class="wahl"><input type="checkbox" id="umbenennen" /> Nach Aufnahmezeit umbenennen</label>
-            <label class="wahl" id="handyWahl"><input type="checkbox" id="handy" /> in Unterordner „_Handy“</label>
-            <label class="wahl"><input type="checkbox" id="verschieben" /> Verschieben statt kopieren</label>
+            <label class="schalter"><input type="checkbox" id="umbenennen" /> Nach Aufnahmezeit umbenennen</label>
+            <label class="schalter" id="handyWahl"><input type="checkbox" id="handy" /> in Unterordner „_Handy“</label>
+            <label class="schalter"><input type="checkbox" id="verschieben" /> Verschieben statt kopieren</label>
           </div>
 
           <label class="feld feld-schmal">
@@ -67,7 +68,7 @@
           <span class="hinweis" id="fortschritt" role="status" aria-live="polite"></span>
         </div>
         <div class="meldungen" id="meldungen" role="status" aria-live="polite"></div>
-        <div class="kacheln" id="kacheln"></div>
+        <div class="zusammenfassung" id="kacheln"></div>
 
         <div class="tabelle-scroll import-tabelle" id="ergebnisBox" hidden>
           <table class="vorgaben-tabelle">
@@ -83,7 +84,7 @@
           </table>
         </div>
         <details class="vorschau" id="uebersprungenBox" hidden>
-          <summary>Übersprungen (Datum außerhalb der Sola-Tage) <span id="uebersprungenAnzahl"></span></summary>
+          <summary>Übersprungen (Datum liegt außerhalb der Tage) <span id="uebersprungenAnzahl"></span></summary>
           <pre id="uebersprungenListe"></pre>
         </details>
       </section>

@@ -1,32 +1,40 @@
+<img src="resources/logo.png" alt="" width="64" align="right" />
+
 # LZ Ordnerstruktur
 
-Ein Werkzeug für den Foto- und Videoworkflow — **auf macOS und auf Windows**. Es
+Ein Werkzeug für Ordner und Dateien — **auf macOS und auf Windows**, ganz ohne
+Internet. Es
 
-* legt die **Sola-Ordnerstruktur** an und installiert die Lightroom-Vorgaben,
-* **importiert Fotos und Videos** von Kamera, Kartenleser oder SD-Karte direkt in
-  die richtigen Ordner — wahlweise in die Sola-Struktur oder, ganz ohne Sola, in
-  einen Datumsbaum (`JJJJ/JJJJMM/JJJJMMDD`).
+* **legt Ordnerstrukturen an** — nach einer Vorlage, die sich in der App frei
+  ändern lässt: fürs Sola-Multimedia-Team genauso wie für eine Hochzeit, einen
+  Urlaub oder das private Archiv,
+* **liest Fotos und Videos von Kamera oder SD-Karte ein** — vergleichen,
+  dann nur das Fehlende kopieren,
+* **sortiert vorhandene Dateien ein** — Fotos nach Aufnahmedatum, Dokumente
+  nach Inhalt,
+* **räumt auf** — doppelte Dateien, Album-Cover, App-Icons, leere Dateien.
 
-Der Import macht die App **auch außerhalb des Solas** nützlich: Karte anstecken,
-vergleichen, kopieren.
-
-Der Sola-Teil ist ein Nachbau von
+Der Ordner-Teil geht auf
 [TH0RB3Nger/SOLA_Ordnerstrucktur](https://github.com/TH0RB3Nger/SOLA_Ordnerstrucktur)
-(VB.NET / WinForms, nur Windows) als Electron-App, damit dasselbe Programm auf
-beiden Plattformen läuft. Optik und Import folgen dem Design des
-[LZ-Sortierers](https://github.com/larszu/lz-sortierer).
+zurück (VB.NET / WinForms, nur Windows); das Einsortieren und Aufräumen kommt
+aus dem [LZ Sortierer](https://github.com/larszu/lz-sortierer). Beides steckt
+jetzt in einer App.
 
 ## Die App
 
 | | |
 | --- | --- |
-| ![Startzustand](docs/screenshots/01-start.png) | ![Ausgefüllt mit Vorschau](docs/screenshots/02-ausgefuellt.png) |
-| Startzustand | Ausgefüllt, mit Vorschau des Baums |
-| ![Ordnerstruktur angelegt](docs/screenshots/03-erstellt.png) | ![Verwaltung der Vorgaben](docs/screenshots/04-vorgaben.png) |
+| ![Startseite](docs/screenshots/01-start.png) | ![Ordnerstruktur ausgefüllt](docs/screenshots/02-ausgefuellt.png) |
+| Startseite — was möchtest du tun? | Ordnerstruktur, ausgefüllt |
+| ![Vorlage bearbeiten](docs/screenshots/07-vorlage.png) | ![Beispielbaum im Editor](docs/screenshots/10-vorlage-probe.png) |
+| Die Vorlage in der Oberfläche ändern | … und sofort sehen, was dabei herauskommt |
+| ![Fotos einsortieren](docs/screenshots/08-fotos.png) | ![Überflüssiges entfernen](docs/screenshots/09-aufraeumen.png) |
+| Fotos nach Aufnahmedatum einsortieren | Aufräumen, Kategorie für Kategorie |
+| ![Ordnerstruktur angelegt](docs/screenshots/03-erstellt.png) | ![Lightroom-Vorgaben](docs/screenshots/04-vorgaben.png) |
 | Angelegt — Vorschau und Ergebnis stimmen überein | Verwaltung der Lightroom-Vorgaben |
 
-Die Oberfläche passt sich der Fensterbreite an; unter 900 px stehen die beiden Solas
-untereinander, unter 620 px auch die Namensspalten:
+Die Oberfläche passt sich der Fensterbreite an; unter 900 px wandert die
+Navigation nach oben und die Blöcke stehen untereinander:
 
 <img src="docs/screenshots/05-schmal.png" alt="Schmales Fenster" width="380">
 
@@ -38,6 +46,20 @@ Kartenleser oder SD-Karte in die richtigen Ordner — es erkennt den Datenträge
 
 Die Bilder entstehen beim Headless-Durchlauf (`npm run smoke`) und sind damit immer
 der tatsächliche Stand der App.
+
+## Sicherheit
+
+Die App fasst Dateien an — deshalb gilt überall dasselbe:
+
+* **Erst Vorschau, dann Ausführen.** Jede Aufgabe zeigt zuerst Zeile für Zeile,
+  was sie tun würde. Erst ein zweiter Klick tut es wirklich.
+* **Nichts wird überschrieben.** Bei gleichem Namen wird durchnummeriert
+  (`_1`, `_2` …).
+* **Entfernt wird in den Papierkorb**, nicht endgültig gelöscht (abschaltbar
+  unter *Hilfe & Einstellungen*).
+* **Protokoll.** Jeder Lauf schreibt mit, was er getan hat — im Zielordner
+  unter `_Sortier-Protokolle` bzw. `_Import-Protokolle`.
+* **Alles bleibt lokal.** Die App lädt nichts ins Internet.
 
 ## Installation
 
@@ -64,32 +86,74 @@ kostenpflichtiges Apple-Developer- bzw. Code-Signing-Zertifikat.
 * **Windows:** SmartScreen zeigt *„Der Computer wurde geschützt"* →
   *Weitere Informationen* → *Trotzdem ausführen*.
 
-## Benutzung
+### Freiwillige Hilfsprogramme
 
-1. **Zielordner** wählen — dort entsteht der Ordner `Sola_<Jahr>`.
-2. **Solas anhaken** — Teens, Kids, SOFA und Sola next lassen sich einzeln oder
-   gemeinsam anlegen. Je Sola das Startdatum (Tag 1), die **Dauer in Tagen**
-   (1–31, voreingestellt 8) und die Bereiche wählen. Bei *Foto* bzw. *Video* die
-   Namen eintragen; die Namensfelder sind nur freigegeben, wenn der Bereich
-   angewählt ist.
-3. **Vorschau** prüfen und **Ordnerstruktur erstellen** klicken. Die Vorschau
-   zeigt exakt das, was danach auf der Platte landet.
-4. Optional: **Lightroom-Vorgaben installieren** — Kürzel (z. B. `M.U.`), Sola
-   und zweistelliges Jahr eintragen. Lightroom danach neu starten.
+Beide sind optional; ohne sie arbeitet die App weiter, weiß aber weniger über
+die Dateien. *Hilfe & Einstellungen* zeigt, was gefunden wurde.
 
-5. Optional: **Fotos und Videos importieren** — über *Importfenster öffnen*
-   (oder `⌘I`/`Strg+I`) das eigene Fenster öffnen, Kamera/SD-Karte anstecken,
-   vergleichen und kopieren. Näheres unter
-   [Fotos und Videos importieren](#fotos-und-videos-importieren).
+```bash
+brew install exiftool   # zuverlässige Aufnahmedaten, besonders bei RAW und Video
+brew install poppler    # pdftotext: liest den Text aus PDF-Dateien
+```
 
-Konfigurationen lassen sich über *Konfiguration speichern* / *laden* (auch per
-`⌘S`/`Strg+S` und `⌘O`/`Strg+O`) sichern und wieder einlesen.
+Unter Windows: [exiftool.org](https://exiftool.org) bzw. die
+poppler-utils. Ohne ExifTool kommt das Aufnahmedatum aus Dateiname oder
+Änderungsdatum; ohne pdftotext landen PDFs unter *Scans ohne Textebene*.
+
+## Ordnerstruktur anlegen
+
+1. **Vorlage wählen.** Mitgeliefert sind fünf:
+
+   | Vorlage | Wofür |
+   | --- | --- |
+   | **Sola (Multimedia-Team)** | die gewohnte Sola-Struktur, unverändert |
+   | **Projekt (Foto oder Film)** | ein Shooting, ein Dreh, ein Auftrag |
+   | **Reise oder Veranstaltung** | je Tag ein Ordner |
+   | **Privates Archiv** | Fotos, Dokumente, Finanzen, Sonstiges |
+   | **Eigene Struktur** | leerer Ausgangspunkt |
+
+2. **Zielordner** wählen, dazu Jahr und/oder Name — je nachdem, was die Vorlage
+   braucht. Rechts steht immer, wie der Hauptordner heißen wird.
+3. **Inhalt** ausfüllen: Blöcke anhaken, Zeitraum und Bereiche wählen, Namen
+   eintragen. Die Namensfelder sind nur freigegeben, wenn ein angewählter
+   Bereich sie überhaupt benutzt.
+4. **Vorschau** prüfen und **Ordner jetzt anlegen** klicken. Die Vorschau zeigt
+   exakt das, was danach auf der Platte landet.
 
 Das Anlegen ist **wiederholbar**: Vorhandene Ordner werden übersprungen, nicht
-überschrieben. Wer nachträglich eine Person ergänzt, kann den Vorgang einfach
-noch einmal starten — der bestehende Inhalt bleibt unangetastet.
+überschrieben. Wer nachträglich eine Person ergänzt, startet den Vorgang einfach
+noch einmal — der bestehende Inhalt bleibt unangetastet.
 
-## Die erzeugte Struktur
+Der Stand wird automatisch gemerkt, je Vorlage getrennt. Zusätzlich lässt er
+sich über *Einstellungen speichern / laden* (auch `⌘S`/`⌘O` bzw. `Strg+S`/`Strg+O`)
+als Datei sichern und weitergeben.
+
+### Vorlagen selbst bauen
+
+Unter *Vorlage bearbeiten* steht der ganze Aufbau als Formular. Eine Vorlage
+besteht aus vier Dingen:
+
+| Baustein | Bedeutung |
+| --- | --- |
+| **Hauptordner** | Muster für den obersten Ordner — `{jahr}` und `{name}` werden eingesetzt. Bleibt ein Wert leer, fällt das Trennzeichen davor mit weg: aus `{jahr}_{name}` wird ohne Jahr schlicht der Name. |
+| **Blöcke** | was direkt unter dem Hauptordner liegt (beim Sola: Teens, Kids, SOFA, Sola next). Mit leerem Ordnernamen liegt alles direkt im Hauptordner — privat meist das Richtige. |
+| **Namenslisten** | Personen, die eigene Ordner bekommen (beim Sola: Fotograf:innen, Videograf:innen). |
+| **Bereiche** | was ein Block enthalten kann. Entweder *ein Ordner mit festen Unterordnern* oder *je Tag ein Ordner* — mit festen Ordnern darin und wahlweise einem Ordner je Person. |
+
+In den Ordnermustern der Tagesordner stehen `{nr}` (1, 2, 3 …), `{nr2}`
+(01, 02, 03 …) und `{datum}` (`dd-MM-yyyy`) zur Verfügung.
+
+Die Personenordner **setzen die Nummerierung ihres Elternordners fort**: Beim
+Sola stehen deshalb die Fotograf:innen als `05_…`, `06_…` hinter den vier festen
+Tagesordnern, die Videograf:innen im leeren `01_Rohvideos` dagegen ab `01_…`.
+
+Mitgelieferte Vorlagen sind schreibgeschützt. Wer eine ändert und speichert,
+bekommt automatisch eine **eigene Kopie**; das Original bleibt erhalten. Eigene
+Vorlagen liegen als JSON im Benutzerdatenordner und überstehen ein Update. Eine
+eigene Vorlage mit der Id einer mitgelieferten (z. B. `sola`) tritt an deren
+Stelle — nach dem Löschen gilt wieder die mitgelieferte.
+
+### Die Sola-Struktur
 
 ```
 Sola_2026/
@@ -139,7 +203,7 @@ ab dem jeweiligen Startdatum. Die Solas dürfen unterschiedlich lang sein und zu
 verschiedenen Terminen stattfinden — nur das Jahr muss zusammenpassen, sonst
 fragt die App nach einer manuellen Eingabe.
 
-### Abweichungen zum Windows-Original
+#### Abweichungen zum Windows-Original
 
 Die Struktur ist die des Originals, an drei Stellen aber vereinheitlicht — im
 Original hatten Teens und Kids uneinheitliche Namen, teils mit fehlendem
@@ -155,17 +219,82 @@ Trennzeichen oder als roher `Date`-Wert:
 
 Sonst gilt: gleiche Ordnernamen, gleiche Nummerierung, gleiche Lightroom-Vorgaben.
 
-### Konfigurationsdateien
+#### Konfigurationsdateien
 
-Gespeichert wird wahlweise als **JSON** (Standard) oder als **CSV** im Format
-des Windows-Originals — CSV-Dateien aus der alten Version lassen sich also
-direkt laden. Beim Datum werden `dd-MM-yyyy`, `dd.MM.yyyy`, `MM/dd/yyyy` und
-ISO `yyyy-MM-dd` erkannt.
+Gespeichert wird als **JSON**; bei der Sola-Vorlage zusätzlich als **CSV** im
+Format des Windows-Originals — CSV-Dateien aus der alten Version lassen sich
+also direkt laden. Beim Datum werden `dd-MM-yyyy`, `dd.MM.yyyy`, `MM/dd/yyyy`
+und ISO `yyyy-MM-dd` erkannt.
 
 Das alte CSV-Format kennt allerdings nur Teens und Kids mit acht Tagen. Wer
 SOFA, Sola next oder eine abweichende Dauer eingestellt hat und trotzdem als
-CSV speichert, bekommt beim Speichern aufgelistet, was dabei wegfällt — für die
-vollständige Konfiguration ist JSON das Format.
+CSV speichert, bekommt beim Speichern aufgelistet, was dabei wegfällt — für den
+vollständigen Stand ist JSON das Format.
+
+## Fotos und Videos einsortieren
+
+Bringt **vorhandene** Fotos und Videos nach ihrem Aufnahmedatum in Ordner. Das
+Datum kommt — in dieser Reihenfolge — aus den Aufnahmedaten der Kamera, sonst
+aus dem Dateinamen, sonst aus dem Änderungsdatum. Die Vorschau zeigt je Datei,
+woher es stammt.
+
+Vier Ordnerschemata stehen zur Wahl:
+
+| Schema | Beispiel |
+| --- | --- |
+| Jahr / Jahr+Monat / Jahr+Monat+Tag | `2026 / 202606 / 20260613` |
+| Jahr / Monat | `2026 / 06 Juni` |
+| Jahr / Jahr-Monat-Tag | `2026 / 2026-06-13` |
+| Nur nach Jahr | `2026` |
+
+Dazu wahlweise: umbenennen in `JJJJMMDD_HHMMSS`, Fotos und Videos in getrennte
+Bäume, kopieren statt verschieben und ein zusätzlicher Unterordner (etwa
+`_Handy`).
+
+## Dokumente einsortieren
+
+Legt PDF-, Word-, Excel- und PowerPoint-Dateien nach ihrem **Inhalt** in
+Sachgruppen ab und benennt sie nach ihrer Überschrift. Keine KI: gezählt wird,
+wie oft ein Stichwort im Text vorkommt; die Gruppe mit den meisten Treffern
+gewinnt. Bei null Treffern oder Gleichstand landet die Datei in `Unsortiert` —
+es wird nicht geraten.
+
+Die **Sachgruppen sind in der App editierbar** (unter *Mehr Einstellungen*):
+Ordnername und Stichwörter, beliebig viele Gruppen, jederzeit auf den Standard
+zurücksetzbar. Mitgeliefert sind zehn: Rechnungen, Verträge und Versicherungen,
+Steuer und Finanzen, Schule und Ausbildung, Glaube und Gemeinde, Fotografie und
+Aufträge, Medizin und Gesundheit, Bewerbung, Behörden und Amtliches,
+Anleitungen und Handbücher.
+
+PDFs ohne Textebene (reine Scans) und unlesbare Dateien bekommen eigene Ordner,
+statt irgendwo einsortiert zu werden.
+
+## Doppelte Dateien
+
+Sucht Dateien mit **gleichem Inhalt** — auch wenn sie anders heißen. Geprüft
+wird in drei Stufen: erst nach Dateigröße gruppiert, dann über das erste
+Megabyte vorgeprüft, erst zum Schluss die ganze Datei gehasht. So wird nur
+gelesen, was wirklich in Frage kommt.
+
+Entfernt wird immer nur die Kopie; je Gruppe bleibt eine Datei liegen — der mit
+dem kürzesten Namen, also meist das Original ohne `_1`.
+
+## Überflüssiges entfernen
+
+Findet, was beim Sichern von Handy oder Rechner anfällt und niemand braucht.
+Jede Kategorie lässt sich einzeln an- und abwählen:
+
+| Kategorie | Was gemeint ist |
+| --- | --- |
+| Leere Dateien | 0 Byte groß |
+| Album-Cover | `folder.jpg`, `AlbumArt…`, `cover.jpg` aus Musikordnern |
+| App-Icons | Dateien wie `com.hersteller.app.png` aus Handy-Sicherungen |
+| YouTube-Zwischenspeicher | `.exo`-Dateien |
+| Video-Bruchstücke | Videodateien unter 100 KB — abgebrochene Aufnahmen |
+| System-Reste | `.DS_Store`, `Thumbs.db`, `desktop.ini` |
+
+Echte Fotos werden nicht angetastet, und vor dem Entfernen steht jede einzelne
+Datei in der Liste.
 
 ## Lightroom-Vorgaben
 
@@ -194,7 +323,7 @@ Vorgaben* lässt sich der Bestand ändern, ohne die App neu zu bauen:
 * **Zurücksetzen** — verwirft alle eigenen Vorgaben und Abwahlen.
 
 Eigene Vorgaben liegen im Benutzerdatenordner der App und überstehen damit ein
-Update. Der Pfad steht in der App unter Punkt 4; *Ordner öffnen* springt hin.
+Update. Der Pfad steht in der App unten im Abschnitt; *Ordner öffnen* springt hin.
 
 Zielordner beim Installieren:
 
@@ -203,12 +332,10 @@ Zielordner beim Installieren:
 | macOS | `~/Library/Application Support/Adobe/Lightroom/{Develop Presets, Export Presets/User Presets}` |
 | Windows | `%APPDATA%\Adobe\Lightroom\{Develop Presets, Export Presets\User Presets}` |
 
-Der tatsächlich verwendete Pfad steht in der App unter Punkt 4.
+## Von Kamera oder SD-Karte einlesen
 
-## Fotos und Videos importieren
-
-Über *Importfenster öffnen* (Abschnitt 5) bzw. `⌘I`/`Strg+I` öffnet sich ein
-**eigenes Fenster**. Der Ablauf ist an [FreeFileSync](https://freefilesync.org)
+Über *Importfenster öffnen* bzw. `⌘I`/`Strg+I` öffnet sich ein **eigenes
+Fenster**. Der Ablauf ist an [FreeFileSync](https://freefilesync.org)
 angelehnt: **Quelle und Ziel wählen, vergleichen, dann kopieren** — ohne im
 Finder/Explorer zu hantieren.
 
@@ -228,60 +355,46 @@ Finder/Explorer zu hantieren.
 > (die drei Vergleichsmethoden, das „nur Fehlendes kopieren, nichts löschen",
 > das Erhalten der Änderungszeit) – es wurde kein Code übernommen.
 
-Das **Aufnahmedatum** bestimmt, wohin eine Datei gehört. Es kommt – in dieser
-Reihenfolge – aus den EXIF-Metadaten, sonst aus dem Dateinamen, sonst aus dem
-Änderungsdatum.
-
 Das **Zielschema** ist wählbar:
 
-* **Sola-Struktur** — legt jede Datei in den Tages- und Personenordner der
-  Sola-Struktur: Fotos nach `…/NN_Foto/<n>_Tag_<dd-MM-yyyy>/PP_<Name>/01_ImportRAW`,
-  Videos nach `…/NN_Video/<n>_Tag_<dd-MM-yyyy>/01_Rohvideos/PP_<Name>`. Sola,
-  Bereich und Person werden aus der oben eingestellten Konfiguration gewählt; das
-  Ziel ist der Zielordner aus Schritt 1. Dateien, deren Datum außerhalb der
-  Sola-Tage liegt, bleiben liegen und werden in der Vorschau aufgeführt.
+* **In die angelegte Ordnerstruktur** — jede Datei kommt in den Tages- und
+  Personenordner der Vorlage, die im Hauptfenster eingestellt ist. Beim Sola
+  also Fotos nach `…/NN_Foto/<n>_Tag_<dd-MM-yyyy>/PP_<Name>/01_ImportRAW`,
+  Videos nach `…/NN_Video/<n>_Tag_<dd-MM-yyyy>/01_Rohvideos/PP_<Name>`. Block,
+  Bereich und Person werden aus der Konfiguration gewählt. Dateien, deren Datum
+  außerhalb der Tage liegt, bleiben liegen und werden in der Vorschau aufgeführt.
 * **Datumsbaum** (`JJJJ/JJJJMM/JJJJMMDD`) — sortiert rein nach Aufnahmedatum,
-  plattformübergreifend. Optional lässt sich in einen Unterordner `_Handy`
-  einsortieren. Angelehnt an den [LZ-Sortierer](https://github.com/larszu/lz-sortierer).
+  ohne Vorlage. Optional in einen Unterordner `_Handy`.
 
 Weitere Schemata lassen sich in `src/core/importPlan.js` ergänzen, ohne den Rest
 anzufassen.
 
-Die Vorschau zeigt vor dem Import, welche Datei wohin käme, aus welcher Quelle das
-Datum stammt und was übersprungen wird. Es gelten dieselben Sicherheitsprinzipien
-wie beim Anlegen der Struktur:
+Es gelten dieselben Sicherheitsprinzipien wie überall, plus:
 
 * **Kopieren statt Verschieben** ist die Voreinstellung — die Speicherkarte bleibt
   unangetastet. Verschieben ist ein bewusstes Häkchen.
-* **Nichts wird überschrieben** — bei Namensgleichheit wird durchnummeriert.
 * **Wiederholbar** — schon vorhandene Dateien (nach der gewählten
   Vergleichsmethode) werden beim zweiten Lauf übersprungen, nichts verdoppelt
   sich. Die Änderungszeit der Quelle bleibt erhalten, damit der Vergleich sie
   wiedererkennt.
-* **Protokoll** — jeder Lauf schreibt eine Liste der Vorgänge nach
-  `_Import-Protokolle` im Zielordner.
 
-### ExifTool
-
-Für zuverlässige Aufnahmedaten – besonders bei RAW und Video – nutzt der Import
-[ExifTool](https://exiftool.org), sofern es installiert ist:
-
-```bash
-brew install exiftool      # macOS
-```
-
-Fehlt ExifTool, arbeitet der Import trotzdem: das Datum kommt dann aus Dateiname
-oder Änderungsdatum. Die Oberfläche weist oben im Abschnitt darauf hin. ExifTool
-verändert dabei keine Dateien, es wird nur zum Lesen der Metadaten aufgerufen.
 Videos aus QuickTime (`.mov`, `.mp4`) werden mit `-api QuickTimeUTC` von UTC auf die
 lokale Zeit umgerechnet, damit sie im richtigen Tagesordner landen.
 
 ## Gestaltung
 
-Die App folgt dem Corporate Design von **Lars Zumpe** — dieselbe Optik wie der
-[LZ-Sortierer](https://github.com/larszu/lz-sortierer): Deep-Navy-Kopf, Papier-Hintergrund,
-Zumpe-Navy-Text und die Funktionsfarben Erfolg/Hinweis/Fehler. Die Farbtokens stehen
-oben in `src/renderer/styles.css`.
+Die App folgt dem **Brand Guide 2.0 der Lars Zumpe Medienproduktion**
+(September 2026): Zumpe Navy und Deep Navy als Flächen, Off-White als Grund,
+Stahlblau für Linien, Schiefer für Sekundärtext, Public Sans als Schrift.
+Blau bleibt die Marke, Rot ist das Signal — Tally-Rot kommt genau zweimal vor,
+im Signet der Kopfzeile und im Fokusring. Keine Rundungen, keine Schatten,
+keine Verläufe: Struktur entsteht durch die Linie.
+
+Die Programmsymbole werden aus der Logo-Geometrie des Brand Kits erzeugt:
+
+```bash
+npm run logo   # schreibt build/icon.png, build/icon.ico und src/renderer/signet.png
+```
 
 ## Entwicklung
 
@@ -308,9 +421,6 @@ npm version 1.1.0        # setzt package.json und legt den Tag v1.1.0 an
 git push origin main --follow-tags
 ```
 
-`npm version` hält beides von vornherein beieinander und ist deshalb der
-bequemste Weg; ein von Hand gesetzter Tag tut es aber auch.
-
 Danach läuft `.github/workflows/release.yml` und
 
 1. prüft die Tests und leitet die Version aus dem Tag ab,
@@ -329,18 +439,24 @@ zu veröffentlichen; die Dateien hängen dort 14 Tage als Artefakt am Lauf.
 
 ### Headless-Durchlauf
 
-`npm run smoke` startet den echten Hauptprozess, füllt das Formular, legt eine
-Ordnerstruktur in einem temporären Ordner an und prüft unter anderem:
+`npm run smoke` startet den echten Hauptprozess, klickt sich durch alle
+Ansichten und prüft unter anderem:
 
 * die Vorschau zeigt genau den Baum, der danach auf der Platte liegt,
 * die Tagesordner sortieren nach Tag und stehen vor `LR Kataloge`,
 * alle vier Solas bekommen ihren festen Ordner, und die eingestellte Dauer
   schlägt auf die Anzahl der Tagesordner durch,
-* eine eigene Vorgabe erscheint in der Tabelle, lässt sich abwählen und entfernen,
+* ein Wechsel der Vorlage baut einen anderen Baum, und eine geänderte Vorlage
+  wird als eigene Kopie gespeichert, ohne die mitgelieferte anzurühren,
+* eine eigene Lightroom-Vorgabe erscheint in der Tabelle, lässt sich abwählen
+  und entfernen,
 * das Importfenster öffnet sich, vergleicht, legt die Dateien anhand ihres Datums
   im richtigen Tages- und Personenordner (`01_ImportRAW`) ab, lässt die Quelle heil
   und erkennt einen zweiten Lauf als „schon vorhanden",
-* bei 1180, 760 und 620 px Fensterbreite scrollt die Seite nicht seitlich.
+* das Einsortieren bringt Fotos und Videos in den Datumsbaum und schreibt ein
+  Protokoll, die Duplikatsuche behält je Gruppe eine Datei, und das Aufräumen
+  lässt echte Fotos liegen,
+* bei 1240, 900 und 620 px Fensterbreite scrollt die Seite nicht seitlich.
 
 Dabei entstehen die Screenshots in `docs/screenshots/`. Der Lauf endet mit
 Code 1, sobald eine Prüfung fehlschlägt — er taugt also für CI.
@@ -349,33 +465,39 @@ Code 1, sobald eine Prüfung fehlschlägt — er taugt also für CI.
 
 ```
 src/core/       Plattformunabhängige Logik, ohne Electron-Abhängigkeit
-  structure.js    baut den Ordnerbaum als Liste relativer Pfade (rein funktional);
-                  liefert mit importZielordner auch die Import-Ziele je Person/Tag
-  createStructure.js  legt diese Liste auf der Platte an
-  exif.js         optionale ExifTool-Anbindung (nur Lesen der Metadaten)
+  vorlagen.js     das Vorlagenmodell und der Ordnerbau (rein funktional);
+                  hier stehen auch die fünf mitgelieferten Vorlagen
+  vorlagenStore.js  eigene Vorlagen im Benutzerdatenordner
+  structure.js    die Sola-Sicht darauf (SOLAS, BEREICHE, buildPlan)
+  createStructure.js  legt die berechnete Ordnerliste auf der Platte an
+  sortieren.js    die vier Aufgaben: Fotos, Dokumente, Duplikate, Aufräumen
+  sachgruppen.js  Stichwortlisten, nach denen Dokumente zugeordnet werden
+  einstellungen.js  gemerkte Ordner, Optionen und Sachgruppen
+  werkzeuge.js    findet exiftool und pdftotext, beides freiwillig
+  exif.js         ExifTool-Anbindung (nur Lesen der Metadaten)
   devices.js      erkennt angesteckte Wechseldatenträger (Kamera/SD über DCIM)
-  importPlan.js   ordnet Dateien anhand ihres Datums einem wählbaren Zielschema zu
-                  (rein funktional, testbar); die Schema-Registry liegt hier
-  importRun.js    sammelt Medien, liest die Metadaten, vergleicht (FreeFileSync-Art)
-                  und setzt den Plan um (kopieren als Standard, Protokoll)
+  importPlan.js   ordnet Dateien anhand ihres Datums einem Zielschema zu
+  importRun.js    sammelt Medien, vergleicht (FreeFileSync-Art), setzt um
   lightroom.js    Preset-Pfade je Plattform, Kopieren und Anpassen
   presetStore.js  führt mitgelieferte und eigene Vorgaben zusammen
   config.js       JSON- und CSV-Format (Letzteres kompatibel zum Original)
-  dates.js        Tagesberechnung, Solajahr
+  dates.js        Tagesberechnung, Jahresermittlung
   validate.js     Namensprüfung und Absicherung der Ordnernamen
 src/main/       Electron-Hauptprozess: Fenster, Menü, Dialoge, IPC
 src/renderer/   Oberfläche (HTML/CSS/JS, ohne Node-Zugriff)
 scripts/smoke.js    Headless-Durchlauf, erzeugt zugleich die Screenshots
+scripts/logo.js     erzeugt die Programmsymbole aus der Logo-Geometrie
 resources/presets/  Die mitgelieferten Lightroom-Vorlagen
 ```
 
-`structure.js` ist bewusst rein funktional: Die Vorschau in der Oberfläche und
+`vorlagen.js` ist bewusst rein funktional: Die Vorschau in der Oberfläche und
 das tatsächliche Anlegen benutzen dieselbe Liste, sie können also nicht
 auseinanderlaufen. Getestet wird gegen diese Liste und gegen einen echten
 Anlagevorgang in einem temporären Ordner.
 
-Ordnernamen und Unterordner stehen als Konstanten am Kopf von
-`src/core/structure.js` — wer die Struktur anpassen will, ändert sie dort.
+Wer die Struktur ändern will, tut das **in der App** unter *Vorlage
+bearbeiten* — nicht im Quelltext. Die mitgelieferten Vorlagen stehen als Daten
+am Kopf von `src/core/vorlagen.js`.
 
 ## Lizenz
 

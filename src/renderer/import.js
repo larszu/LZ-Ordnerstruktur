@@ -1,16 +1,16 @@
 'use strict';
 
-/* global sola */
+/* global lz */
 // Eigenständiges Importfenster. Ablauf wie bei FreeFileSync: Quelle und Ziel
 // wählen, vergleichen, dann nur das Fehlende kopieren.
 
 const $ = (id) => document.getElementById(id);
 
-const BEREICH_LABEL = { foto: 'Foto', video: 'Video' };
 const KAT_LABEL = { neu: 'neu', gleich: 'vorhanden', anders: 'abweichend' };
 
 const zustand = {
   config: null,
+  vorlage: null,
   schemata: [],
   methoden: [],
   quelle: '',
@@ -18,10 +18,13 @@ const zustand = {
   bereit: false,
 };
 
+/** Bereiche der Vorlage, in die sich importieren lässt: Tagesordner + Namensliste. */
+const importBereiche = () => (zustand.vorlage ? zustand.vorlage.bereiche.filter((b) => b.tage && b.personenListe) : []);
+
 /** Kachel mit Kennzahl und Beschriftung. */
 function kachel(zahl, etikett, klasse = '') {
   const n = Number(zahl || 0).toLocaleString('de-DE');
-  return `<div class="kachel ${klasse}"><span class="zahl">${n}</span><span class="etikett">${etikett}</span></div>`;
+  return `<div class="zahlkachel ${klasse}"><span class="zahl">${n}</span><span class="etikett">${etikett}</span></div>`;
 }
 
 function meldungen(liste) {
@@ -30,10 +33,13 @@ function meldungen(liste) {
   for (const m of liste) {
     const div = document.createElement('div');
     div.className = `meldung meldung-${m.art}`;
-    div.textContent = m.text;
+    const text = document.createElement('span');
+    text.textContent = m.text;
+    div.appendChild(text);
     if (m.knopf) {
       const knopf = document.createElement('button');
       knopf.type = 'button';
+      knopf.className = 'knopf knopf-klein knopf-still';
       knopf.textContent = m.knopf.text;
       knopf.addEventListener('click', m.knopf.aktion);
       div.appendChild(knopf);
@@ -43,11 +49,11 @@ function meldungen(liste) {
 }
 
 async function init() {
-  const info = await sola.importKontext();
+  const info = await lz.importKontext();
   zustand.config = info.config;
   zustand.schemata = info.schemata;
   zustand.methoden = info.methoden;
-  zustand.solas = info.solas;
+  zustand.vorlage = info.vorlage;
   zustand.zielBasis = info.zielordner || '';
 
   $('werkzeugHinweis').innerHTML = info.exiftool
@@ -64,17 +70,17 @@ async function init() {
 
   $('btnGeraeteAktualisieren').addEventListener('click', geraeteLaden);
   $('btnQuelleOrdner').addEventListener('click', async () => {
-    const pfad = await sola.ordnerWaehlen('Quellordner (Speicherkarte) wählen');
+    const pfad = await lz.ordnerWaehlen('Quellordner (Speicherkarte) wählen');
     if (pfad) setzeQuelle(pfad);
   });
   $('btnZielOrdner').addEventListener('click', async () => {
-    const pfad = await sola.ordnerWaehlen('Zielordner wählen');
+    const pfad = await lz.ordnerWaehlen('Zielordner wählen');
     if (pfad) { zustand.zielBasis = pfad; setzeBereit(false); aktualisiereFelder(); }
   });
   $('btnVergleichen').addEventListener('click', vergleichen);
   $('btnKopieren').addEventListener('click', kopieren);
 
-  sola.aufImportFortschritt((d) => { $('fortschritt').textContent = d.text; });
+  lz.aufImportFortschritt((d) => { $('fortschritt').textContent = d.text; });
 
   await geraeteLaden();
   aktualisiereFelder();
@@ -83,7 +89,7 @@ async function init() {
 // ---- Geräte ----------------------------------------------------------------
 
 async function geraeteLaden() {
-  const liste = await sola.geraeteListe();
+  const liste = await lz.geraeteListe();
   const ziel = $('geraeteListe');
   ziel.textContent = '';
   if (!liste.length) {
@@ -139,19 +145,21 @@ function aktualisiereFelder() {
 }
 
 function fuelleSolaFelder() {
-  const solaSel = $('sola');
-  const aktive = zustand.solas.filter((s) => zustand.config[s.key].aktiv);
-  fuelleSelect(solaSel, aktive.map((s) => ({ value: s.key, text: s.titel })), 'Kein Sola aktiv');
+  const projektSel = $('sola');
+  const aktive = zustand.vorlage.projekte.filter((p) => zustand.config[p.key] && zustand.config[p.key].aktiv);
+  fuelleSelect(projektSel, aktive.map((p) => ({ value: p.key, text: p.titel })), 'Nichts angewählt');
 
-  const daten = solaSel.value ? zustand.config[solaSel.value] : null;
+  const daten = projektSel.value ? zustand.config[projektSel.value] : null;
+  // Nur Bereiche anbieten, die angewählt sind und überhaupt Personenordner haben.
   const bereiche = daten
-    ? ['foto', 'video'].filter((b) => daten.bereiche[b]).map((b) => ({ value: b, text: BEREICH_LABEL[b] }))
+    ? importBereiche().filter((b) => daten.bereiche[b.key]).map((b) => ({ value: b.key, text: b.label }))
     : [];
-  fuelleSelect($('bereich'), bereiche, 'Kein Foto/Video-Bereich');
+  fuelleSelect($('bereich'), bereiche, 'Kein passender Bereich');
 
-  const bereich = $('bereich').value;
-  const rolle = bereich === 'video' ? 'videografen' : 'fotografen';
-  const namen = daten && bereich ? daten[rolle].filter(Boolean).map((n) => ({ value: n, text: n })) : [];
+  const bereich = importBereiche().find((b) => b.key === $('bereich').value);
+  const namen = daten && bereich
+    ? daten[bereich.personenListe].filter(Boolean).map((n) => ({ value: n, text: n }))
+    : [];
   fuelleSelect($('person'), namen, 'Keine Namen eingetragen');
 }
 
@@ -189,7 +197,7 @@ function kannVergleichen() {
 function baueKtx() {
   const schema = aktuellesSchema();
   if (schema.braucht.includes('sola')) {
-    return { solaKey: $('sola').value, bereich: $('bereich').value, person: $('person').value, umbenennen: $('umbenennen').checked };
+    return { projektKey: $('sola').value, bereich: $('bereich').value, person: $('person').value, umbenennen: $('umbenennen').checked };
   }
   return { umbenennen: $('umbenennen').checked, unterordner: $('handy').checked ? '_Handy' : '' };
 }
@@ -210,7 +218,7 @@ async function vergleichen() {
   $('fortschritt').textContent = 'Lese Quelle …';
   $('btnVergleichen').disabled = true;
 
-  const antwort = await sola.importVergleichen({
+  const antwort = await lz.importVergleichen({
     quelle: zustand.quelle,
     zielBasis: zustand.zielBasis,
     schema: aktuellesSchema().key,
@@ -231,9 +239,9 @@ async function vergleichen() {
   const k = antwort.kategorien;
   $('kacheln').innerHTML =
     kachel(antwort.gefunden, 'gefunden') +
-    kachel(k.neu, 'neu → kopieren', 'kachel-neu') +
-    kachel(k.gleich, 'schon vorhanden', 'kachel-gleich') +
-    kachel(k.anders, 'abweichend', 'kachel-anders');
+    kachel(k.neu, 'neu → kopieren', 'zahlkachel-neu') +
+    kachel(k.gleich, 'schon vorhanden', 'zahlkachel-gleich') +
+    kachel(k.anders, 'abweichend', 'zahlkachel-anders');
 
   zeigeErgebnis(antwort.eintraege || []);
 
@@ -282,7 +290,7 @@ async function kopieren() {
   $('btnVergleichen').disabled = true;
   $('fortschritt').textContent = 'Kopiere …';
 
-  const antwort = await sola.importKopieren({
+  const antwort = await lz.importKopieren({
     zielBasis: zustand.zielBasis,
     verschieben: $('verschieben').checked,
     methode: $('methode').value,
@@ -300,7 +308,7 @@ async function kopieren() {
   liste.unshift({
     art: antwort.fehler.length ? 'warnung' : 'erfolg',
     text: `${antwort.erledigt} Dateien ${antwort.modus}` + (antwort.uebersprungen ? `, ${antwort.uebersprungen} schon vorhanden` : '') + '.',
-    knopf: { text: 'Zielordner zeigen', aktion: () => sola.ordnerOeffnen(zustand.zielBasis) },
+    knopf: { text: 'Zielordner zeigen', aktion: () => lz.ordnerOeffnen(zustand.zielBasis) },
   });
   meldungen(liste);
   $('fortschritt').textContent = antwort.protokoll ? `Fertig — Protokoll: ${antwort.protokoll}` : 'Fertig.';

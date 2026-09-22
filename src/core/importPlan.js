@@ -5,7 +5,8 @@
 // so lässt sich die Zuordnung wie buildPlan ohne Kamera testen, und die Vorschau
 // in der Oberfläche zeigt garantiert das, was der Import danach tut.
 const path = require('path');
-const { importZielordner } = require('./structure');
+const { zielordnerFuerVorlage } = require('./structure');
+const { VORLAGE_SOLA } = require('./vorlagen');
 const { sanitizeSegment } = require('./validate');
 
 const nr = (n) => String(n).padStart(2, '0');
@@ -87,11 +88,15 @@ function umbenannt(name, d) {
 const SCHEMATA = [
   {
     key: 'sola',
-    label: 'Sola-Struktur',
-    beschreibung: 'In die Tages- und Personenordner der Sola-Struktur – Foto nach 01_ImportRAW, Video nach 01_Rohvideos.',
+    label: 'In die angelegte Ordnerstruktur',
+    beschreibung: 'In die Tages- und Personenordner der gewählten Vorlage – beim Sola also Foto nach 01_ImportRAW, Video nach 01_Rohvideos.',
     braucht: ['sola', 'bereich', 'person'],
     vorbereiten({ ktx, config }) {
-      const z = importZielordner(config, ktx);
+      const z = zielordnerFuerVorlage(ktx.vorlage || VORLAGE_SOLA, config, {
+        projektKey: ktx.projektKey || ktx.solaKey,
+        bereich: ktx.bereich,
+        person: ktx.person,
+      });
       const leer = Object.keys(z.ziele).length === 0;
       return {
         jahr: z.jahr,
@@ -109,7 +114,7 @@ const SCHEMATA = [
   {
     key: 'datum',
     label: 'Datumsbaum (JJJJ/JJJJMM/JJJJMMDD)',
-    beschreibung: 'Rein nach Aufnahmedatum sortiert, plattformübergreifend – wie der LZ-Sortierer.',
+    beschreibung: 'Rein nach Aufnahmedatum sortiert – ohne Vorlage, gut für den privaten Gebrauch.',
     braucht: ['umbenennen', 'handy'],
     vorbereiten() {
       return { jahr: '', ziele: null, warnungen: [], fehler: null };

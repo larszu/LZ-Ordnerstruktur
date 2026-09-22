@@ -2,7 +2,8 @@
 
 const fs = require('fs');
 const path = require('path');
-const { buildPlan } = require('./structure');
+const { planFuerVorlage } = require('./structure');
+const { VORLAGE_SOLA } = require('./vorlagen');
 
 /**
  * Legt den von {@link buildPlan} berechneten Ordnerbaum unterhalb von `zielPfad` an.
@@ -10,12 +11,13 @@ const { buildPlan } = require('./structure');
  * Vorgang ist damit wiederholbar (z.B. um nachträglich Namen zu ergänzen).
  *
  * @param {string} zielPfad Basisordner, den die Nutzerin / der Nutzer gewählt hat
- * @param {import('./structure').Config} config
+ * @param {object} config
+ * @param {object} [vorlage] Vorlage, nach der gebaut wird (Standard: Sola)
  * @returns {{erstellt: number, vorhanden: number, jahr: string, wurzel: string,
  *            warnungen: string[], fehler: Array<{pfad: string, grund: string}>}}
  */
-function createStructure(zielPfad, config) {
-  const { ordner, jahr, warnungen } = buildPlan(config);
+function createStructure(zielPfad, config, vorlage = VORLAGE_SOLA) {
+  const { ordner, jahr, warnungen } = planFuerVorlage(vorlage, config);
   const fehler = [];
   let erstellt = 0;
   let vorhanden = 0;
