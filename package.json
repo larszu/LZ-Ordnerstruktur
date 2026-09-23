@@ -55,10 +55,8 @@
       ],
       "artifactName": "LZ-Ordnerstruktur-${version}-${arch}.${ext}",
       "darkModeSupport": true,
-      "hardenedRuntime": true,
-      "gatekeeperAssess": false,
-      "entitlements": "build/entitlements.mac.plist",
-      "entitlementsInherit": "build/entitlements.mac.plist"
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false
     },
     "dmg": {
       "title": "LZ Ordnerstruktur ${version}"
@@ -95,6 +93,7 @@
     },
     "portable": {
       "artifactName": "LZ-Ordnerstruktur-${version}-${arch}-portable.${ext}"
-    }
+    },
+    "afterPack": "scripts/adhoc-sign.js"
   }
 }

@@ -76,15 +76,37 @@ automatisch per GitHub Actions (`.github/workflows/release.yml`), sobald ein Tag
 
 ### Hinweis zur ersten Ausführung
 
-Die Pakete sind **nicht signiert** — für eine Signatur braucht es ein
+Die Pakete tragen **kein Entwicklerzertifikat** — dafür bräuchte es ein
 kostenpflichtiges Apple-Developer- bzw. Code-Signing-Zertifikat.
 
 * **macOS:** Beim ersten Start meldet Gatekeeper, die App stamme von einem
   unbekannten Entwickler. Rechtsklick auf die App → *Öffnen* → *Öffnen*.
-  Falls macOS die App als „beschädigt" bezeichnet, hilft im Terminal:
-  `xattr -dr com.apple.quarantine "/Applications/LZ Ordnerstruktur.app"`
+  Danach startet sie wie jede andere.
 * **Windows:** SmartScreen zeigt *„Der Computer wurde geschützt"* →
   *Weitere Informationen* → *Trotzdem ausführen*.
+
+#### Warum die App nicht mehr „beschädigt" ist
+
+Ohne Zertifikat überspringt electron-builder das Signieren vollständig. Übrig
+bleibt dann nur die `linker-signed`-Signatur der Electron-Binärdatei — sie
+deckt weder die `Info.plist` noch die Ressourcen ab (`Sealed Resources=none`),
+und `codesign --verify` meldet *„code has no resources but signature indicates
+they must be present"*. Auf Apple Silicon führt genau das dazu, dass der Finder
+nicht „unbekannter Entwickler" sagt, sondern **„… ist beschädigt und kann nicht
+geöffnet werden"** — obwohl an der Datei nichts fehlt.
+
+`scripts/adhoc-sign.js` hängt sich deshalb als `afterPack` in den Bau und
+signiert das fertige Bundle **ad hoc** (`codesign --sign -`). Das versiegelt die
+App ohne Zertifikat; sie gilt weiterhin als nicht verifiziert, aber nicht mehr
+als beschädigt. Ist ein echtes Zertifikat gesetzt (`CSC_LINK`/`CSC_NAME`), hält
+sich der Haken heraus.
+
+Wer trotzdem einmal auf eine „beschädigte" Datei stößt — etwa ein älteres
+Release —, entfernt die Quarantäne-Markierung von Hand:
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/LZ Ordnerstruktur.app"
+```
 
 ### Freiwillige Hilfsprogramme
 
