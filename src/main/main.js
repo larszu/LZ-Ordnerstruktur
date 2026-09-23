@@ -13,12 +13,13 @@ const sortieren = require('../core/sortieren');
 const werkzeuge = require('../core/werkzeuge');
 const exif = require('../core/exif');
 const { vergleicheImport, runImport, VERGLEICH_METHODEN } = require('../core/importRun');
-const { schemaListe } = require('../core/importPlan');
+const { schemaListe, PERSON_AUTOMATISCH } = require('../core/importPlan');
+const kameras = require('../core/kameras');
 const { listRemovable } = require('../core/devices');
 const { installPresets, lightroomPfade } = require('../core/lightroom');
 const presetStore = require('../core/presetStore');
 const { SOLA_TAGE, MIN_TAGE, MAX_TAGE } = require('../core/dates');
-const { toCsv, toJson, parseConfig, csvVerlust } = require('../core/config');
+const { toJson, parseConfig, CONFIG_VERSION } = require('../core/config');
 const { STANDARD_GRUPPEN } = require('../core/sachgruppen');
 
 const IST_MAC = process.platform === 'darwin';
@@ -229,27 +230,19 @@ ipcMain.handle('einstellungen:zuruecksetzen', () => einstellungen.zuruecksetzen(
 
 ipcMain.handle('config:speichern', async (_e, { config, vorlageId }) => {
   const vorlage = holeVorlage(vorlageId);
-  const istSola = vorlage.id === 'sola';
   const ergebnis = await dialog.showSaveDialog(fenster, {
     title: 'Einstellungen speichern unter',
     defaultPath: `${vorlage.id}_Konfiguration_${config.jahr || new Date().getFullYear()}.json`,
-    filters: istSola
-      ? [
-          { name: 'JSON', extensions: ['json'] },
-          { name: 'CSV (Format des Windows-Originals)', extensions: ['csv'] },
-        ]
-      : [{ name: 'JSON', extensions: ['json'] }],
+    // JSON ist das einzige Speicherformat. Das CSV des Windows-Originals lässt
+    // sich weiterhin öffnen, wird aber nicht mehr geschrieben.
+    filters: [{ name: 'JSON', extensions: ['json'] }],
   });
   if (ergebnis.canceled || !ergebnis.filePath) return { gespeichert: false };
 
-  const pfad = ergebnis.filePath;
-  const alsCsv = istSola && /\.csv$/i.test(pfad);
-  const inhalt = alsCsv ? toCsv(config) : toJson({ ...config, vorlage: vorlage.id });
+  const pfad = ergebnis.filePath.replace(/(\.json)?$/i, '.json');
   try {
-    fs.writeFileSync(pfad, inhalt, 'utf8');
-    // Das CSV-Format des Originals kennt nur Teens, Kids und acht Tage.
-    // Was dabei wegfällt, soll nicht stillschweigend verschwinden.
-    return { gespeichert: true, pfad, verlust: alsCsv ? csvVerlust(config) : [] };
+    fs.writeFileSync(pfad, toJson({ ...config, vorlage: vorlage.id }), 'utf8');
+    return { gespeichert: true, pfad };
   } catch (err) {
     return { gespeichert: false, fehler: err.message };
   }
@@ -262,7 +255,7 @@ ipcMain.handle('config:laden', async () => {
     filters: [
       { name: 'Konfiguration', extensions: ['json', 'csv'] },
       { name: 'JSON', extensions: ['json'] },
-      { name: 'CSV', extensions: ['csv'] },
+      { name: 'CSV des Windows-Originals', extensions: ['csv'] },
     ],
   });
   if (ergebnis.canceled || ergebnis.filePaths.length === 0) return { geladen: false };
@@ -270,13 +263,19 @@ ipcMain.handle('config:laden', async () => {
   const pfad = ergebnis.filePaths[0];
   try {
     const text = fs.readFileSync(pfad, 'utf8');
-    // Die Datei sagt selbst, zu welcher Vorlage sie gehört; fehlt die Angabe,
-    // ist es eine alte Sola-Datei.
     const roh = /\.json$/i.test(pfad) || text.trim().startsWith('{') ? JSON.parse(text) : null;
+    // Die Datei sagt selbst, zu welcher Vorlage sie gehört; fehlt die Angabe,
+    // ist es eine alte Sola-Datei (JSON vor der Vorlagen-Zeit oder eine CSV).
     const vorlageId = roh && roh.vorlage ? String(roh.vorlage) : 'sola';
     const vorlage = holeVorlage(vorlageId);
-    const config = roh ? vorlagen.normalisiereConfig(roh, vorlage) : parseConfig(text, pfad);
-    return { geladen: true, pfad, config, vorlageId: vorlage.id };
+    const { config, format } = parseConfig(text, pfad);
+    return {
+      geladen: true,
+      pfad,
+      format,
+      vorlageId: vorlage.id,
+      config: roh ? vorlagen.normalisiereConfig(config, vorlage) : config,
+    };
   } catch (err) {
     return { geladen: false, fehler: err.message };
   }
@@ -343,11 +342,14 @@ const { version: APP_VERSION } = require('../../package.json');
 
 ipcMain.handle('app:info', () => ({
   version: APP_VERSION,
+  configVersion: CONFIG_VERSION,
   plattform: process.platform,
   vorlagen: vorlagenStore.listeVorlagen(userVorlagenDir()),
   tage: { standard: SOLA_TAGE, min: MIN_TAGE, max: MAX_TAGE },
   anzahlNamen: vorlagen.ANZAHL_NAMEN,
   importSchemata: schemaListe(),
+  personAutomatisch: PERSON_AUTOMATISCH,
+  maxVersatzMinuten: kameras.MAX_VERSATZ_MINUTEN,
   datumSchemata: sortieren.schemaListe(),
   aufraeumKategorien: sortieren.AUFRAEUM_KATEGORIEN,
   standardGruppen: STANDARD_GRUPPEN,
@@ -362,6 +364,14 @@ ipcMain.handle('app:info', () => ({
 // Der zuletzt berechnete Plan je Aufgabe. „Ausführen" setzt genau den um, der
 // in der Vorschau stand – es wird nicht heimlich neu eingelesen.
 const letztePruefung = {};
+
+// Abbruchwünsche je Aufgabe. Ein laufender Vorgang sieht zwischen zwei Dateien
+// nach, ob hier etwas steht — die laufende Datei wird immer fertig bearbeitet.
+const abbruch = { import: false };
+
+ipcMain.handle('abbrechen', (_e, was) => {
+  abbruch[was] = true;
+});
 
 const sortierMelder = (aufgabe) => (text) => {
   if (fenster) fenster.webContents.send('sortieren:fortschritt', { aufgabe, text });
@@ -418,9 +428,17 @@ ipcMain.handle('sortieren:ausfuehren', async (_e, { aufgabe, inPapierkorb }) => 
   const fuehreAus = AUSFUEHRER[aufgabe];
   if (!gespeichert || !fuehreAus) return { ok: false, fehler: 'Bitte zuerst eine Vorschau erstellen.' };
   try {
-    const optionen = { ...gespeichert.optionen, entferne: entferner(inPapierkorb !== false) };
+    abbruch[aufgabe] = false;
+    const optionen = {
+      ...gespeichert.optionen,
+      entferne: entferner(inPapierkorb !== false),
+      sollAbbrechen: () => abbruch[aufgabe] === true,
+    };
     const ergebnis = await fuehreAus(gespeichert.ergebnis, optionen, sortierMelder(aufgabe));
-    delete letztePruefung[aufgabe];
+    // Nach einem Abbruch bleibt der Rest des Plans stehen, damit sich
+    // weitermachen lässt, ohne alles neu einzulesen.
+    if (ergebnis.abgebrochen) gespeichert.ergebnis.plan = gespeichert.ergebnis.plan.slice(ergebnis.erledigt);
+    else delete letztePruefung[aufgabe];
     return { ok: true, ...ergebnis };
   } catch (err) {
     return { ok: false, fehler: String(err.message || err) };
@@ -496,6 +514,9 @@ ipcMain.handle('import:kontext', () => {
     schemata: schemaListe(),
     methoden: VERGLEICH_METHODEN,
     exiftool: exif.vorhanden,
+    exiftoolQuelle: exif.quelle,
+    personAutomatisch: PERSON_AUTOMATISCH,
+    einstellungen: einstellungen.lade(userDir()),
     plattform: process.platform,
   };
 });
@@ -507,9 +528,22 @@ ipcMain.handle('import:vergleichen', async (_e, { quelle, zielBasis, schema, ktx
   try {
     // Die Vorlage kommt aus dem Hauptprozess, nicht aus dem Fenster – so kann
     // die Oberfläche kein fremdes Ziel unterschieben.
-    const kontext = { ...ktx, vorlage: holeVorlage(importKontext.vorlageId) };
+    const gespeichert = einstellungen.lade(userDir());
+    const kontext = {
+      ...ktx,
+      vorlage: holeVorlage(importKontext.vorlageId),
+      kameras: gespeichert.kameras,
+    };
     const r = await vergleicheImport({ quelle, zielBasis, schema, ktx: kontext, config, methode, melde: importMelder() });
     letzterVergleich = { plan: r.plan, methode };
+
+    // Beim Vergleich gesehene Kameras merken — zuordnen muss man sie einmal
+    // von Hand, aber sie sollen von allein in der Liste auftauchen.
+    const ergaenzt = kameras.ergaenzeKameras(gespeichert.kameras, r.metadaten || []);
+    if (ergaenzt.neu.length > 0) {
+      einstellungen.speichere(userDir(), { kameras: ergaenzt.kameras });
+      if (fenster) fenster.webContents.send('kameras:neu', ergaenzt.kameras);
+    }
     return {
       ok: true,
       gefunden: r.gefunden,
@@ -520,26 +554,32 @@ ipcMain.handle('import:vergleichen', async (_e, { quelle, zielBasis, schema, ktx
       zielBekannt: r.zielBekannt,
       uebersprungenDatum: r.uebersprungenDatum.slice(0, 40).map((u) => `${path.basename(u.von)} — ${u.grund}`),
       eintraege: r.eintraege.slice(0, 300),
+      kameras: ergaenzt.kameras,
     };
   } catch (err) {
     return { ok: false, fehler: String(err.message || err) };
   }
 });
 
-ipcMain.handle('import:kopieren', async (_e, { zielBasis, verschieben, methode }) => {
+ipcMain.handle('import:kopieren', async (_e, { zielBasis, verschieben, methode, metadatenWunsch }) => {
   if (!letzterVergleich || letzterVergleich.plan.length === 0) {
     return { ok: false, fehler: 'Bitte zuerst vergleichen.' };
   }
   if (!zielBasis) return { ok: false, fehler: 'Kein Zielordner gewählt.' };
   try {
+    abbruch.import = false;
     const r = await runImport({
       plan: letzterVergleich.plan,
       zielBasis,
       verschieben,
       methode: methode || letzterVergleich.methode,
       melde: importMelder(),
+      sollAbbrechen: () => abbruch.import === true,
+      metadatenWunsch,
     });
-    letzterVergleich = null;
+    // Nach einem Abbruch bleibt der Rest stehen; ein erneuter Vergleich zeigt
+    // ohnehin, was noch fehlt.
+    if (!r.abgebrochen) letzterVergleich = null;
     return { ok: true, ...r };
   } catch (err) {
     return { ok: false, fehler: String(err.message || err) };

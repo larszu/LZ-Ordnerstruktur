@@ -205,6 +205,14 @@ app.whenReady().then(async () => {
     const startVorgaben = await imFenster('zustand.vorgaben.length');
     pruefe(startVorgaben === 5, 'die fünf mitgelieferten Lightroom-Vorgaben sind gelistet', `gelistet: ${startVorgaben}`);
 
+    const werkzeuge = await imFenster('JSON.stringify(zustand.info.werkzeuge)').then(JSON.parse);
+    pruefe(werkzeuge.exiftool === true, 'ExifTool steht bereit');
+    pruefe(
+      werkzeuge.exiftoolQuelle === 'mitgeliefert',
+      'ExifTool kommt aus dem Paket, nicht vom Rechner',
+      werkzeuge.exiftoolQuelle,
+    );
+
     console.log('\n· Ordnerstruktur ausfüllen');
     await geheZu('struktur');
     const zustand = await imFenster(FORMULAR_FUELLEN);
@@ -514,6 +522,42 @@ app.whenReady().then(async () => {
     );
     pruefe(!fs.existsSync(path.join(chaos, '20240712_140000.jpg')), 'die Quelldatei wurde verschoben, nicht kopiert');
     pruefe(fs.existsSync(path.join(fotoZiel, '_Sortier-Protokolle')), 'das Einsortieren schreibt ein Protokoll');
+
+    console.log('\n· Abbrechen');
+    const abbruchKnoepfe = await imFenster(
+      "[...document.querySelectorAll('.aufgabe .abbrechen')].length",
+    );
+    pruefe(abbruchKnoepfe === 4, 'jede Aufgabe hat einen Abbrechen-Knopf', String(abbruchKnoepfe));
+    const abbruchVersteckt = await imFenster(
+      "[...document.querySelectorAll('.aufgabe .abbrechen')].every((k) => k.hidden)",
+    );
+    pruefe(abbruchVersteckt, 'er taucht erst auf, wenn wirklich etwas läuft');
+
+    console.log('\n· Kameras und Metadaten');
+    await geheZu('kameras');
+    const kameraStand = await imFenster(`(async () => {
+      const setzen = (id, wert) => {
+        const el = document.getElementById(id);
+        el.value = wert;
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+      };
+      setzen('metaUrheber', 'Lars Zumpe');
+      setzen('metaStichworte', 'Sola 2026, Teens');
+      const gps = document.getElementById('metaGps');
+      gps.checked = true;
+      gps.dispatchEvent(new Event('change', { bubbles: true }));
+      await new Promise((r) => setTimeout(r, 700));
+      const frisch = await lz.einstellungenLesen();
+      return { metadaten: frisch.metadaten, leerText: document.getElementById('kameraListe').textContent };
+    })()`);
+    pruefe(kameraStand.metadaten.urheber === 'Lars Zumpe', 'der Urheber wird gemerkt', kameraStand.metadaten.urheber);
+    pruefe(kameraStand.metadaten.gpsEntfernen === true, 'das GPS-Häkchen wird gemerkt');
+    pruefe(
+      /Noch keine Kamera gesehen/.test(kameraStand.leerText),
+      'ohne gesehene Kamera steht dort, was zu tun ist',
+      kameraStand.leerText.slice(0, 60),
+    );
+    await screenshot(win, '11-kameras.png');
 
     console.log('\n· Doppelte Dateien');
     const doppelt = path.join(arbeitsordner, 'doppelt');

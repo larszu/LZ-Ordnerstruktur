@@ -35,6 +35,7 @@
         <button type="button" class="nav-knopf" data-ansicht="aufraeumen">Überflüssiges</button>
 
         <p class="nav-kicker">Mehr</p>
+        <button type="button" class="nav-knopf" data-ansicht="kameras">Kameras</button>
         <button type="button" class="nav-knopf" data-ansicht="lightroom">Lightroom-Vorgaben</button>
         <button type="button" class="nav-knopf" data-ansicht="hilfe">Hilfe &amp; Einstellungen</button>
       </nav>
@@ -275,6 +276,7 @@
           <div class="aktionen">
             <button type="button" class="knopf knopf-still pruefen">Vorschau erstellen</button>
             <button type="button" class="knopf knopf-primaer ausfuehren" disabled>Einsortieren</button>
+            <button type="button" class="knopf knopf-still abbrechen" hidden>Abbrechen</button>
           </div>
           <p class="sicherheit">Nichts wird überschrieben: gibt es den Namen schon, wird durchnummeriert. Jeder Lauf schreibt ein Protokoll.</p>
           <div class="fortschritt" aria-live="polite"></div>
@@ -325,6 +327,7 @@
           <div class="aktionen">
             <button type="button" class="knopf knopf-still pruefen">Vorschau erstellen</button>
             <button type="button" class="knopf knopf-primaer ausfuehren" disabled>Einsortieren</button>
+            <button type="button" class="knopf knopf-still abbrechen" hidden>Abbrechen</button>
           </div>
           <p class="sicherheit">Nichts wird überschrieben. Was sich nicht eindeutig zuordnen lässt, kommt nach <code>Unsortiert</code>.</p>
           <div class="fortschritt" aria-live="polite"></div>
@@ -353,6 +356,7 @@
           <div class="aktionen">
             <button type="button" class="knopf knopf-still pruefen">Doppelte suchen</button>
             <button type="button" class="knopf knopf-primaer ausfuehren" disabled>Kopien entfernen</button>
+            <button type="button" class="knopf knopf-still abbrechen" hidden>Abbrechen</button>
           </div>
           <p class="sicherheit">Je Gruppe bleibt immer eine Datei liegen — es kann nichts doppelt verloren gehen.</p>
           <div class="fortschritt" aria-live="polite"></div>
@@ -386,11 +390,57 @@
           <div class="aktionen">
             <button type="button" class="knopf knopf-still pruefen">Suchen</button>
             <button type="button" class="knopf knopf-primaer ausfuehren" disabled>Entfernen</button>
+            <button type="button" class="knopf knopf-still abbrechen" hidden>Abbrechen</button>
           </div>
           <p class="sicherheit">Vorher steht jede einzelne Datei in der Liste. Nichts wird ohne diesen Blick entfernt.</p>
           <div class="fortschritt" aria-live="polite"></div>
           <div class="zusammenfassung"></div>
           <ul class="liste"></ul>
+        </section>
+
+        <!-- ------------------------------------------------------------ -->
+        <section class="ansicht" id="ansicht-kameras">
+          <h2 class="titel">Kameras</h2>
+          <p class="einleitung">
+            Jede Kamera schreibt ihre Seriennummer in die Bilder. Ist sie hier einmal einer Person
+            zugeordnet, sortiert der Import auch eine gemischte Speicherkarte ohne Nachfragen —
+            und ein Uhrzeit-Versatz rückt Bilder gerade, deren Kamera falsch geht.
+          </p>
+          <p class="hinweis">
+            Die Liste füllt sich von allein: Jede beim Vergleichen gesehene Kamera landet hier.
+            Die Originaldateien werden dabei nicht verändert — der Versatz gilt nur für die
+            Einsortierung.
+          </p>
+
+          <div class="kopflinie"><span class="kicker">Bekannte Kameras</span></div>
+          <div class="editorliste" id="kameraListe"></div>
+          <div class="meldungen" id="kameraMeldungen" role="status" aria-live="polite"></div>
+
+          <div class="kopflinie"><span class="kicker">Was beim Import in die Dateien kommt</span></div>
+          <p class="hinweis">
+            Geschrieben wird ausschließlich in die <strong>Kopien im Zielordner</strong>, nie auf die
+            Speicherkarte. Leere Felder werden übersprungen.
+          </p>
+          <div class="zeile zeile-umbruch">
+            <label class="feld feld-breit">
+              <span>Urheber</span>
+              <input type="text" id="metaUrheber" placeholder="z. B. Lars Zumpe" />
+            </label>
+            <label class="feld feld-breit">
+              <span>Rechtehinweis</span>
+              <input type="text" id="metaRechte" placeholder="z. B. © 2026 Lars Zumpe Medienproduktion" />
+            </label>
+          </div>
+          <label class="feld feld-breit">
+            <span>Stichwörter <em>(durch Komma getrennt)</em></span>
+            <input type="text" id="metaStichworte" placeholder="Sola 2026, Teens" />
+          </label>
+          <label class="schalter">
+            <input type="checkbox" id="metaGps" />
+            <span><strong>Ortsangaben (GPS) aus den Kopien entfernen.</strong>
+              <em>Handys und viele Kameras schreiben die Koordinaten mit ins Bild. Bei Aufnahmen
+              von einer Freizeit mit Minderjährigen gehört das nicht ins Netz.</em></span>
+          </label>
         </section>
 
         <!-- ------------------------------------------------------------ -->

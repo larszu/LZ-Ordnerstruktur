@@ -48,7 +48,9 @@ const brücke = {
   sortierenPruefen: (daten) => ipcRenderer.invoke('sortieren:pruefen', daten),
   sortierenAusfuehren: (daten) => ipcRenderer.invoke('sortieren:ausfuehren', daten),
   sortierenVerwerfen: (aufgabe) => ipcRenderer.invoke('sortieren:verwerfen', aufgabe),
+  abbrechen: (was) => ipcRenderer.invoke('abbrechen', was),
   aufSortierFortschritt: (handler) => ipcRenderer.on('sortieren:fortschritt', (_e, d) => handler(d)),
+  aufNeueKameras: (handler) => ipcRenderer.on('kameras:neu', (_e, d) => handler(d)),
 
   // Importfenster
   importFensterOeffnen: (kontext) => ipcRenderer.invoke('import:fensterOeffnen', kontext),

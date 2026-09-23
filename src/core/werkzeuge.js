@@ -1,12 +1,15 @@
 'use strict';
 
 /**
- * Externe Hilfsprogramme, die die App benutzen kann, aber nicht braucht.
+ * Externe Hilfsprogramme.
  *
- *   exiftool   zuverlässige Aufnahmedaten (siehe exif.js)
- *   pdftotext  Text aus PDF-Dateien lesen (Teil von poppler)
+ *   exiftool   zuverlässige Aufnahmedaten — **wird mitgeliefert** (siehe
+ *              mitgeliefert.js); ein selbst installiertes wird benutzt, wenn
+ *              die mitgelieferte Fassung fehlt
+ *   pdftotext  Text aus PDF-Dateien lesen (Teil von poppler) — nicht
+ *              mitgeliefert, weil PDF-Text nur eine von vier Aufgaben betrifft
  *
- * Fehlt eins davon, arbeitet die App weiter — nur mit weniger Wissen über die
+ * Fehlt pdftotext, arbeitet die App weiter — nur mit weniger Wissen über die
  * Dateien. Die Oberfläche sagt, was fehlt und was das bedeutet.
  */
 
@@ -65,8 +68,9 @@ function pdfText(pfad, maxZeichen = 40000) {
 /** Stand der Hilfsprogramme für die Oberfläche. */
 function stand() {
   return {
-    exiftool: Boolean(exif.EXIFTOOL),
+    exiftool: exif.vorhanden,
     exiftoolPfad: exif.EXIFTOOL || '',
+    exiftoolQuelle: exif.quelle,
     pdftotext: Boolean(PDFTOTEXT),
     pdftotextPfad: PDFTOTEXT || '',
   };

@@ -290,6 +290,16 @@ async function pruefeFotos(quelle, optionen, melde) {
   return { plan, zusammenfassung: { anzahl: plan.length, quellen } };
 }
 
+/**
+ * Prüft zwischen zwei Dateien, ob abgebrochen werden soll.
+ * Die laufende Datei wird immer fertig bearbeitet — so bleibt nichts halb liegen.
+ */
+const abbruchGeprueft = (optionen, log, n) => {
+  if (!optionen.sollAbbrechen || !optionen.sollAbbrechen()) return false;
+  log.push('', `ABGEBROCHEN nach ${n} Dateien.`);
+  return true;
+};
+
 async function fuehreFotosAus(scan, optionen, melde) {
   const log = [
     `Fotos und Videos einsortiert am ${new Date().toLocaleString('de-DE')}`,
@@ -298,7 +308,9 @@ async function fuehreFotosAus(scan, optionen, melde) {
     '',
   ];
   let n = 0;
+  let abgebrochen = false;
   for (const s of scan.plan) {
+    if (abbruchGeprueft(optionen, log, n)) { abgebrochen = true; break; }
     const ziel = freierName(s.ordner, s.zielName);
     await bringeHin(s.von, ziel, { kopieren: Boolean(optionen.kopieren), setzeDatum: s.ts });
     log.push(`${s.von}  ->  ${ziel}`);
@@ -306,7 +318,7 @@ async function fuehreFotosAus(scan, optionen, melde) {
     if (n % 200 === 0) melde && melde(`${optionen.kopieren ? 'kopiert' : 'verschoben'}: ${n} / ${scan.plan.length}`);
   }
   const protokoll = await schreibeProtokoll(optionen.ziel, 'fotos-sortiert', log);
-  return { erledigt: n, protokoll };
+  return { erledigt: n, abgebrochen, protokoll };
 }
 
 // ---------------------------------------------------------------------------
@@ -443,7 +455,9 @@ async function fuehreDokumenteAus(scan, optionen, melde) {
     '',
   ];
   let n = 0;
+  let abgebrochen = false;
   for (const s of scan.plan) {
+    if (abbruchGeprueft(optionen, log, n)) { abgebrochen = true; break; }
     const ziel = freierName(s.ordner, s.zielName);
     await bringeHin(s.von, ziel, { kopieren: Boolean(optionen.kopieren) });
     log.push(`[${s.gruppe}] ${s.von}  ->  ${path.basename(ziel)}`);
@@ -451,7 +465,7 @@ async function fuehreDokumenteAus(scan, optionen, melde) {
     if (n % 50 === 0) melde && melde(`einsortiert: ${n} / ${scan.plan.length}`);
   }
   const protokoll = await schreibeProtokoll(optionen.ziel, 'dokumente-sortiert', log);
-  return { erledigt: n, protokoll };
+  return { erledigt: n, abgebrochen, protokoll };
 }
 
 // ---------------------------------------------------------------------------
@@ -524,7 +538,9 @@ async function fuehreDuplikateAus(scan, optionen, melde) {
     '',
   ];
   let n = 0;
+  let abgebrochen = false;
   for (const s of scan.plan) {
+    if (abbruchGeprueft(optionen, log, n)) { abgebrochen = true; break; }
     log.push(`entfernt: ${s.weg}\n  bleibt:  ${s.behalten}`);
     await entferne(s.weg);
     n += 1;
@@ -532,7 +548,7 @@ async function fuehreDuplikateAus(scan, optionen, melde) {
   }
   const wurzel = optionen.ziel || path.dirname((scan.plan[0] || {}).behalten || '.');
   const protokoll = await schreibeProtokoll(wurzel, 'duplikate-entfernt', log);
-  return { erledigt: n, protokoll };
+  return { erledigt: n, abgebrochen, protokoll };
 }
 
 // ---------------------------------------------------------------------------
@@ -602,7 +618,9 @@ async function fuehreAufraeumenAus(scan, optionen, melde) {
   const entferne = optionen.entferne || loescheHart;
   const log = [`Aufgeräumt am ${new Date().toLocaleString('de-DE')}`, ''];
   let n = 0;
+  let abgebrochen = false;
   for (const s of scan.plan) {
+    if (abbruchGeprueft(optionen, log, n)) { abgebrochen = true; break; }
     log.push(`[${s.kategorie}] ${s.weg}`);
     await entferne(s.weg);
     n += 1;
@@ -610,7 +628,7 @@ async function fuehreAufraeumenAus(scan, optionen, melde) {
   }
   const wurzel = optionen.ziel || path.dirname((scan.plan[0] || {}).weg || '.');
   const protokoll = await schreibeProtokoll(wurzel, 'aufgeraeumt', log);
-  return { erledigt: n, protokoll };
+  return { erledigt: n, abgebrochen, protokoll };
 }
 
 // ---------------------------------------------------------------------------

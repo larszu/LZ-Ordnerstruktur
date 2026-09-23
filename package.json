@@ -1,7 +1,7 @@
 {
   "name": "lz-ordnerstruktur",
   "productName": "LZ Ordnerstruktur",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Ordnerstrukturen nach frei konfigurierbaren Vorlagen anlegen, Fotos und Videos von Kamera oder SD-Karte importieren, vorhandene Dateien nach Datum und Inhalt einsortieren, Duplikate finden und aufräumen — privat und fürs Sola, für macOS und Windows.",
   "author": "Lars Zumpe Medienproduktion",
   "repository": {
@@ -19,7 +19,8 @@
     "dist:all": "electron-builder --mac --win",
     "smoke": "xvfb-run -a --server-args=\"-screen 0 1400x1000x24\" electron --no-sandbox scripts/smoke.js",
     "smoke:mac": "electron scripts/smoke.js",
-    "logo": "node scripts/logo.js"
+    "logo": "node scripts/logo.js",
+    "exiftool": "npm install --force --no-save exiftool-vendored.pl exiftool-vendored.exe"
   },
   "devDependencies": {
     "electron": "^43.3.0",
@@ -34,7 +35,8 @@
     },
     "files": [
       "src/**/*",
-      "package.json"
+      "package.json",
+      "!node_modules/exiftool-vendored.*/**"
     ],
     "extraResources": [
       {
@@ -56,7 +58,21 @@
       "artifactName": "LZ-Ordnerstruktur-${version}-${arch}.${ext}",
       "darkModeSupport": true,
       "hardenedRuntime": false,
-      "gatekeeperAssess": false
+      "gatekeeperAssess": false,
+      "extraResources": [
+        {
+          "from": "resources/presets",
+          "to": "presets"
+        },
+        {
+          "from": "resources/EXIFTOOL-LIZENZ.txt",
+          "to": "EXIFTOOL-LIZENZ.txt"
+        },
+        {
+          "from": "node_modules/exiftool-vendored.pl/bin",
+          "to": "exiftool"
+        }
+      ]
     },
     "dmg": {
       "title": "LZ Ordnerstruktur ${version}"
@@ -76,7 +92,21 @@
           ]
         }
       ],
-      "artifactName": "LZ-Ordnerstruktur-${version}-${arch}.${ext}"
+      "artifactName": "LZ-Ordnerstruktur-${version}-${arch}.${ext}",
+      "extraResources": [
+        {
+          "from": "resources/presets",
+          "to": "presets"
+        },
+        {
+          "from": "resources/EXIFTOOL-LIZENZ.txt",
+          "to": "EXIFTOOL-LIZENZ.txt"
+        },
+        {
+          "from": "node_modules/exiftool-vendored.exe/bin",
+          "to": "exiftool"
+        }
+      ]
     },
     "nsis": {
       "oneClick": false,
@@ -89,11 +119,29 @@
       "target": [
         "AppImage"
       ],
-      "category": "Utility"
+      "category": "Utility",
+      "extraResources": [
+        {
+          "from": "resources/presets",
+          "to": "presets"
+        },
+        {
+          "from": "resources/EXIFTOOL-LIZENZ.txt",
+          "to": "EXIFTOOL-LIZENZ.txt"
+        },
+        {
+          "from": "node_modules/exiftool-vendored.pl/bin",
+          "to": "exiftool"
+        }
+      ]
     },
     "portable": {
       "artifactName": "LZ-Ordnerstruktur-${version}-${arch}-portable.${ext}"
     },
-    "afterPack": "scripts/adhoc-sign.js"
+    "afterPack": "scripts/after-pack.js"
+  },
+  "optionalDependencies": {
+    "exiftool-vendored.exe": "^13.59.2",
+    "exiftool-vendored.pl": "^13.59.2"
   }
 }

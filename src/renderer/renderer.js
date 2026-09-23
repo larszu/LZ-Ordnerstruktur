@@ -21,6 +21,7 @@ const zustand = {
   entwurf: null,
   gruppen: [],
   aufraeumKategorien: {},
+  kameras: [],
 };
 
 const $ = (id) => document.getElementById(id);
@@ -42,6 +43,7 @@ async function init() {
   zustand.einstellungen = info.einstellungen;
   zustand.gruppen = info.einstellungen.gruppen;
   zustand.aufraeumKategorien = info.einstellungen.aufraeumKategorien;
+  zustand.kameras = info.einstellungen.kameras;
   zustand.pfad = info.einstellungen.zielordner || '';
 
   $('version').textContent = `v${info.version}`;
@@ -57,6 +59,8 @@ async function init() {
   await waehleVorlage(info.einstellungen.vorlage, { stillSpeichern: true });
   baueKategorien();
   baueGruppenListe();
+  baueKameraListe();
+  verdrahteMetadaten();
   verdrahteStruktur();
   verdrahteAufgaben();
   verdrahtePresets();
@@ -72,6 +76,17 @@ async function init() {
       ziel.className = 'fortschritt';
       ziel.textContent = text;
     }
+  });
+
+  // Der Import meldet neu gesehene Kameras — dann die Liste auffrischen.
+  lz.aufNeueKameras((kameras) => {
+    zustand.kameras = kameras;
+    zustand.einstellungen = { ...zustand.einstellungen, kameras };
+    baueKameraListe();
+    zeigeMeldungen('kameraMeldungen', [{
+      art: 'erfolg',
+      text: 'Beim Vergleichen wurde eine neue Kamera gesehen. Trag unten ein, wem sie gehört.',
+    }]);
   });
 
   lz.onMenu('menu:save', speichernAlsDatei);
@@ -466,16 +481,7 @@ async function erstellen() {
 async function speichernAlsDatei() {
   const ergebnis = await lz.configSpeichern(zustand.config, zustand.vorlage.id);
   if (ergebnis.gespeichert) {
-    const meldungen = [{ art: 'erfolg', text: `Gespeichert: ${ergebnis.pfad}` }];
-    if (ergebnis.verlust && ergebnis.verlust.length > 0) {
-      meldungen.push({
-        art: 'warnung',
-        text:
-          `Das CSV-Format des Windows-Originals kennt nur Teens und Kids mit acht Tagen. Nicht gespeichert wurde: ${ergebnis.verlust.join('; ')}. `
-          + 'Für den vollständigen Stand bitte als JSON speichern.',
-      });
-    }
-    zeigeMeldungen('meldungen', meldungen);
+    zeigeMeldungen('meldungen', [{ art: 'erfolg', text: `Gespeichert: ${ergebnis.pfad}` }]);
   } else if (ergebnis.fehler) {
     zeigeMeldungen('meldungen', [{ art: 'fehler', text: `Speichern fehlgeschlagen: ${ergebnis.fehler}` }]);
   }
@@ -488,7 +494,18 @@ async function ladenAusDatei() {
     zustand.config = ergebnis.config;
     baueProjekte();
     await aktualisiereStruktur();
-    zeigeMeldungen('meldungen', [{ art: 'erfolg', text: `Geladen: ${ergebnis.pfad}` }]);
+    const meldungen = [{ art: 'erfolg', text: `Geladen: ${ergebnis.pfad}` }];
+    if (ergebnis.format === 'csv') {
+      // CSV lässt sich nur noch lesen — darauf hinweisen, solange der Stand
+      // noch nicht als JSON gesichert ist.
+      meldungen.push({
+        art: 'warnung',
+        text: 'Das ist eine CSV des Windows-Originals. Sie lässt sich öffnen, aber nicht mehr '
+          + 'schreiben — bitte einmal als JSON speichern, dann bleibt alles erhalten.',
+        knopf: { text: 'Jetzt als JSON speichern …', aktion: speichernAlsDatei },
+      });
+    }
+    zeigeMeldungen('meldungen', meldungen);
   } else if (ergebnis.fehler) {
     zeigeMeldungen('meldungen', [{ art: 'fehler', text: `Laden fehlgeschlagen: ${ergebnis.fehler}` }]);
   }
@@ -926,6 +943,11 @@ function verdrahteAufgaben() {
 
     abschnitt.querySelector('.pruefen').addEventListener('click', () => pruefe(abschnitt, aufgabe));
     abschnitt.querySelector('.ausfuehren').addEventListener('click', () => fuehreAus(abschnitt, aufgabe));
+    abschnitt.querySelector('.abbrechen').addEventListener('click', (e) => {
+      e.currentTarget.disabled = true;
+      e.currentTarget.textContent = 'Halte an …';
+      lz.abbrechen(aufgabe);
+    });
   }
 
   $('btnGruppeNeu').addEventListener('click', () => {
@@ -1014,10 +1036,17 @@ async function pruefe(abschnitt, aufgabe) {
 
 async function fuehreAus(abschnitt, aufgabe) {
   const knopf = abschnitt.querySelector('.ausfuehren');
+  const halt = abschnitt.querySelector('.abbrechen');
   knopf.disabled = true;
   knopf.textContent = 'Arbeite …';
+  halt.hidden = false;
+  halt.disabled = false;
+  halt.textContent = 'Abbrechen';
+
   const r = await lz.sortierenAusfuehren({ aufgabe, inPapierkorb: $('optPapierkorb').checked });
+
   knopf.textContent = AUFGABEN_TEXTE[aufgabe].ausfuehren;
+  halt.hidden = true;
 
   if (!r.ok) {
     meldeIn(abschnitt, 'fehler', `Fehler: ${r.fehler}`);
@@ -1026,6 +1055,13 @@ async function fuehreAus(abschnitt, aufgabe) {
   }
   abschnitt.querySelector('.liste').textContent = '';
   abschnitt.querySelector('.zusammenfassung').textContent = '';
+  if (r.abgebrochen) {
+    // Der Rest des Plans steht noch — ein Klick macht dort weiter.
+    knopf.disabled = false;
+    knopf.textContent = `Weitermachen (${AUFGABEN_TEXTE[aufgabe].ausfuehren})`;
+    meldeIn(abschnitt, '', `Abgebrochen nach ${zahl(r.erledigt)} Dateien. Protokoll: ${r.protokoll}`);
+    return;
+  }
   meldeIn(abschnitt, 'fertig', `Fertig — ${zahl(r.erledigt)} Dateien. Protokoll: ${r.protokoll}`);
 }
 
@@ -1099,6 +1135,97 @@ function baueGruppenListe() {
     );
     ziel.appendChild(zeile);
   });
+}
+
+// ---------------------------------------------------------------------------
+// Kameras und Metadaten
+// ---------------------------------------------------------------------------
+
+function baueKameraListe() {
+  const ziel = $('kameraListe');
+  ziel.textContent = '';
+
+  if (zustand.kameras.length === 0) {
+    const leer = document.createElement('p');
+    leer.className = 'hinweis';
+    leer.textContent = 'Noch keine Kamera gesehen. Sobald du im Importfenster einmal vergleichst, '
+      + 'stehen die Kameras der Speicherkarte hier.';
+    ziel.appendChild(leer);
+    return;
+  }
+
+  for (const kamera of zustand.kameras) {
+    const kennung = document.createElement('label');
+    kennung.className = 'feld feld-breit';
+    const kText = document.createElement('span');
+    kText.textContent = 'Kamera';
+    const kWert = document.createElement('input');
+    kWert.type = 'text';
+    kWert.value = kamera.modell ? `${kamera.modell} · ${kamera.id}` : kamera.id;
+    kWert.readOnly = true;
+    kennung.append(kText, kWert);
+
+    const person = editorFeld('Gehört', kamera.person, (v) => {
+      kamera.person = v;
+      merkeKameras();
+    }, { breit: true, platzhalter: 'Name wie in der Namensliste' });
+
+    const versatz = document.createElement('label');
+    versatz.className = 'feld feld-tage';
+    const vText = document.createElement('span');
+    vText.textContent = 'Versatz (Min.)';
+    const vWert = document.createElement('input');
+    vWert.type = 'number';
+    vWert.step = '1';
+    vWert.min = String(-zustand.info.maxVersatzMinuten);
+    vWert.max = String(zustand.info.maxVersatzMinuten);
+    vWert.value = String(kamera.versatzMinuten || 0);
+    vWert.addEventListener('input', () => {
+      kamera.versatzMinuten = Number(vWert.value) || 0;
+      merkeKameras();
+    });
+    versatz.append(vText, vWert);
+
+    const weg = document.createElement('button');
+    weg.type = 'button';
+    weg.className = 'knopf knopf-klein knopf-still';
+    weg.textContent = 'Vergessen';
+    weg.addEventListener('click', () => {
+      zustand.kameras = zustand.kameras.filter((k) => k !== kamera);
+      merkeKameras();
+      baueKameraListe();
+    });
+
+    const zeile = document.createElement('div');
+    zeile.className = 'editorzeile';
+    zeile.append(kennung, person, versatz, weg);
+    ziel.appendChild(zeile);
+  }
+}
+
+function merkeKameras() {
+  merke({ kameras: zustand.kameras });
+}
+
+function verdrahteMetadaten() {
+  const m = zustand.einstellungen.metadaten || {};
+  $('metaUrheber').value = m.urheber || '';
+  $('metaRechte').value = m.rechte || '';
+  $('metaStichworte').value = m.stichworte || '';
+  $('metaGps').checked = Boolean(m.gpsEntfernen);
+
+  const sichern = () => merke({
+    metadaten: {
+      urheber: $('metaUrheber').value,
+      rechte: $('metaRechte').value,
+      stichworte: $('metaStichworte').value,
+      gpsEntfernen: $('metaGps').checked,
+    },
+  });
+  for (const id of ['metaUrheber', 'metaRechte', 'metaStichworte']) {
+    $(id).addEventListener('input', sichern);
+  }
+  $('metaGps').addEventListener('change', sichern);
 }
 
 // ---------------------------------------------------------------------------
@@ -1296,8 +1423,11 @@ function verdrahteHilfe() {
     zustand.gruppen = zustand.einstellungen.gruppen;
     zustand.aufraeumKategorien = zustand.einstellungen.aufraeumKategorien;
     zustand.pfad = '';
+    zustand.kameras = zustand.einstellungen.kameras;
     baueGruppenListe();
     baueKategorien();
+    baueKameraListe();
+    verdrahteMetadaten();
     await waehleVorlage(zustand.einstellungen.vorlage, { stillSpeichern: true });
     await aktualisiereStruktur();
     zeigeMeldungen('hilfeMeldungen', [{ art: 'erfolg', text: 'Einstellungen zurückgesetzt.' }]);
@@ -1306,13 +1436,21 @@ function verdrahteHilfe() {
 
 function zeigeWerkzeugStand() {
   const w = zustand.info.werkzeuge;
+  const exifText = {
+    mitgeliefert: 'ExifTool ist mitgeliefert und einsatzbereit — Aufnahmedaten werden zuverlässig gelesen. '
+      + 'Es ist nichts zu tun.',
+    'selbst installiert': `ExifTool gefunden (${w.exiftoolPfad}) — die selbst installierte Fassung wird benutzt.`,
+    vorgegeben: `ExifTool aus der Umgebungsvariable (${w.exiftoolPfad}).`,
+  }[w.exiftoolQuelle] || `ExifTool gefunden (${w.exiftoolPfad}).`;
+
   const meldungen = [
     w.exiftool
-      ? { art: 'erfolg', text: `exiftool gefunden (${w.exiftoolPfad}) — Aufnahmedaten werden zuverlässig gelesen.` }
+      ? { art: 'erfolg', text: exifText }
       : {
           art: 'warnung',
-          text: 'exiftool fehlt. Das Aufnahmedatum kommt dann nur aus Dateiname oder Änderungsdatum. '
-            + 'Nachinstallieren mit „brew install exiftool" (macOS) bzw. von exiftool.org (Windows).',
+          text: 'ExifTool lässt sich nicht starten — eigentlich liegt es der App bei. '
+            + 'Das Aufnahmedatum kommt jetzt nur aus Dateiname oder Änderungsdatum. '
+            + 'Abhilfe: „brew install exiftool" (macOS) bzw. exiftool.org (Windows).',
         },
     w.pdftotext
       ? { art: 'erfolg', text: `pdftotext gefunden (${w.pdftotextPfad}) — PDF-Inhalte werden gelesen.` }

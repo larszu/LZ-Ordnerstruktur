@@ -12,6 +12,7 @@
 const fs = require('fs');
 const path = require('path');
 const { STANDARD_GRUPPEN, normalisiereGruppen } = require('./sachgruppen');
+const { normalisiereKameras } = require('./kameras');
 
 const DATEI = 'einstellungen.json';
 
@@ -42,6 +43,10 @@ function standard() {
     gruppen: STANDARD_GRUPPEN.map((g) => ({ name: g.name, worte: [...g.worte] })),
     // Lightroom
     kuerzel: '',
+    // Kameras: Seriennummer -> Person und Uhrzeit-Versatz
+    kameras: [],
+    // Was beim Import in die Kopien geschrieben wird
+    metadaten: { urheber: '', rechte: '', stichworte: '', gpsEntfernen: false },
   };
 }
 
@@ -57,7 +62,9 @@ function lade(userDir) {
     // Keine oder kaputte Datei — dann gelten die Vorgaben.
   }
   werte.gruppen = normalisiereGruppen(werte.gruppen);
+  werte.kameras = normalisiereKameras(werte.kameras);
   werte.aufraeumKategorien = { ...standard().aufraeumKategorien, ...(werte.aufraeumKategorien || {}) };
+  werte.metadaten = { ...standard().metadaten, ...(werte.metadaten || {}) };
   return werte;
 }
 
@@ -65,6 +72,7 @@ function lade(userDir) {
 function speichere(userDir, aenderungen) {
   const werte = { ...lade(userDir), ...(aenderungen || {}) };
   werte.gruppen = normalisiereGruppen(werte.gruppen);
+  werte.kameras = normalisiereKameras(werte.kameras);
   try {
     fs.mkdirSync(userDir, { recursive: true });
     fs.writeFileSync(path.join(userDir, DATEI), `${JSON.stringify(werte, null, 2)}\n`, 'utf8');

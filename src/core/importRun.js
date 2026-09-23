@@ -14,6 +14,7 @@ const fsp = fs.promises;
 const path = require('path');
 const crypto = require('crypto');
 const exif = require('./exif');
+const metadaten = require('./metadaten');
 const { buildImportPlan } = require('./importPlan');
 
 // Vergleichsmethoden nach dem Vorbild von FreeFileSync: „Datum & Größe" ist der
@@ -106,7 +107,9 @@ async function scanImport({ quelle, schema, ktx, config, melde }) {
   );
   const infos = await leseInfos(dateien, melde);
   const ergebnis = buildImportPlan({ dateien: infos, schema, ktx, config });
-  return { ...ergebnis, gefunden: dateien.length };
+  // Die gelesenen Metadaten mitgeben: daraus erkennt die App, welche Kameras
+  // auf der Karte waren — auch die, die noch keiner Person zugeordnet sind.
+  return { ...ergebnis, gefunden: dateien.length, metadaten: infos.map((i) => i.exif).filter(Boolean) };
 }
 
 /**
@@ -149,6 +152,7 @@ async function vergleicheImport({ quelle, zielBasis, schema, ktx, config, method
     uebersprungenDatum: scan.uebersprungen,
     warnungen: scan.warnungen,
     jahr: scan.jahr,
+    metadaten: scan.metadaten,
     zielBekannt: Boolean(zielBasis),
   };
 }
@@ -233,7 +237,7 @@ async function protokoll(zielBasis, zeilen) {
  * @param {string}   [args.methode='zeitgroesse']  wie „schon vorhanden" erkannt wird
  * @param {(text: string) => void} [args.melde]
  */
-async function runImport({ plan, zielBasis, verschieben = false, methode = 'zeitgroesse', melde }) {
+async function runImport({ plan, zielBasis, verschieben = false, methode = 'zeitgroesse', melde, sollAbbrechen, metadatenWunsch }) {
   const modus = verschieben ? 'verschoben' : 'kopiert';
   const log = [
     `Import am ${new Date().toLocaleString('de-DE')}`,
@@ -242,13 +246,24 @@ async function runImport({ plan, zielBasis, verschieben = false, methode = 'zeit
   ];
   let erledigt = 0;
   let uebersprungen = 0;
+  let abgebrochen = false;
   const fehler = [];
+  // Die Kopien im Zielordner — nur in sie werden später Metadaten geschrieben,
+  // nie in die Dateien auf der Karte.
+  const geschrieben = [];
 
   if (!zielBasis) {
-    return { erledigt: 0, uebersprungen: 0, fehler: [{ von: '', grund: 'Kein Zielordner gewählt.' }], protokoll: '', modus };
+    return { erledigt: 0, uebersprungen: 0, abgebrochen: false, fehler: [{ von: '', grund: 'Kein Zielordner gewählt.' }], protokoll: '', modus };
   }
 
   for (const s of plan) {
+    // Abbrechen wirkt zwischen zwei Dateien: die laufende wird fertig
+    // geschrieben, danach hört der Lauf auf. So bleibt keine halbe Datei liegen.
+    if (sollAbbrechen && sollAbbrechen()) {
+      abgebrochen = true;
+      log.push('', `ABGEBROCHEN nach ${erledigt} Dateien.`);
+      break;
+    }
     const zielOrdner = path.join(zielBasis, ...s.zielRel.split('/'));
     try {
       const direkt = path.join(zielOrdner, s.zielName);
@@ -267,6 +282,14 @@ async function runImport({ plan, zielBasis, verschieben = false, methode = 'zeit
         const ziel = await freierName(zielOrdner, s.zielName);
         if (verschieben) await verschiebe(s.von, ziel);
         else await fsp.copyFile(s.von, ziel);
+        // Nach dem Kopieren nachsehen, ob wirklich alles angekommen ist. Eine
+        // volle Platte oder eine mitten im Lauf abgezogene Karte fällt sonst
+        // erst Wochen später auf.
+        const soll = fs.statSync(ziel).size;
+        const quellGroesse = verschieben ? soll : fs.statSync(s.von).size;
+        if (soll !== quellGroesse) {
+          throw new Error(`unvollständig kopiert (${soll} statt ${quellGroesse} Byte)`);
+        }
         // Die Änderungszeit der Quelle erhalten (wie FreeFileSync) – so erkennt
         // ein späterer Vergleich dieselbe Datei wieder.
         if (quellZeit) {
@@ -277,6 +300,7 @@ async function runImport({ plan, zielBasis, verschieben = false, methode = 'zeit
           }
         }
         log.push(`${s.von}  ->  ${ziel}`);
+        geschrieben.push(ziel);
         erledigt += 1;
       }
     } catch (err) {
@@ -288,6 +312,18 @@ async function runImport({ plan, zielBasis, verschieben = false, methode = 'zeit
     }
   }
 
+  // Metadaten erst nach dem Kopieren, und nur in die Kopien.
+  let metaErgebnis = { geschrieben: 0, fehler: [] };
+  if (!metadaten.istLeer(metadatenWunsch) && geschrieben.length > 0) {
+    melde && melde(`Schreibe Metadaten in ${geschrieben.length} Dateien …`);
+    metaErgebnis = await metadaten.schreibe(geschrieben, metadatenWunsch, melde);
+    log.push('', `Metadaten geschrieben: ${metaErgebnis.geschrieben} Dateien`);
+    for (const f of metaErgebnis.fehler) {
+      fehler.push({ von: '', grund: `Metadaten: ${f.grund}` });
+      log.push(`FEHLER Metadaten: ${f.grund}`);
+    }
+  }
+
   let protokollDatei = '';
   try {
     protokollDatei = await protokoll(zielBasis, log);
@@ -295,7 +331,15 @@ async function runImport({ plan, zielBasis, verschieben = false, methode = 'zeit
     fehler.push({ von: PROTOKOLL_ORDNER, grund: `Protokoll nicht geschrieben: ${err.message}` });
   }
 
-  return { erledigt, uebersprungen, fehler, protokoll: protokollDatei, modus };
+  return {
+    erledigt,
+    uebersprungen,
+    abgebrochen,
+    metadaten: metaErgebnis.geschrieben,
+    fehler,
+    protokoll: protokollDatei,
+    modus,
+  };
 }
 
 module.exports = {

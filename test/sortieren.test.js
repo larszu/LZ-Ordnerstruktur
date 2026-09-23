@@ -265,3 +265,54 @@ test('jede Aufgabe beschreibt ihre Planzeilen', () => {
   assert.match(sortieren.beschreibe('duplikate', { weg: '/a/x', behalten: '/a/y' }), /bleibt/);
   assert.match(sortieren.beschreibe('aufraeumen', { weg: '/a/x', kategorie: 'Album-Cover' }), /Album-Cover/);
 });
+
+// --- Abbrechen und Kopie-Prüfung -------------------------------------------
+
+test('ein Abbruch hält zwischen zwei Dateien an und meldet das', async () => {
+  const dir = ordner();
+  const ziel = path.join(dir, 'ziel');
+  for (let i = 1; i <= 5; i += 1) schreibe(dir, `2026061${i}_101010.jpg`, `foto-${i}`);
+
+  const optionen = { ziel, schema: 'nur-jahr' };
+  const scan = await sortieren.pruefeFotos(dir, optionen);
+  assert.equal(scan.plan.length, 5);
+
+  // Nach der zweiten Datei abbrechen.
+  let gesehen = 0;
+  const ergebnis = await sortieren.fuehreFotosAus(scan, {
+    ...optionen,
+    sollAbbrechen: () => (gesehen += 1) > 2,
+  });
+
+  assert.equal(ergebnis.abgebrochen, true);
+  assert.equal(ergebnis.erledigt, 2, 'genau die bearbeiteten Dateien zählen');
+  // Die übrigen liegen unangetastet in der Quelle.
+  assert.equal(fs.readdirSync(dir).filter((n) => n.endsWith('.jpg')).length, 3);
+  assert.match(fs.readFileSync(ergebnis.protokoll, 'utf8'), /ABGEBROCHEN nach 2 Dateien/);
+});
+
+test('ohne Abbruchwunsch läuft alles durch', async () => {
+  const dir = ordner();
+  schreibe(dir, '20260613_101010.jpg');
+  const optionen = { ziel: path.join(dir, 'ziel'), schema: 'nur-jahr' };
+  const scan = await sortieren.pruefeFotos(dir, optionen);
+  const ergebnis = await sortieren.fuehreFotosAus(scan, { ...optionen, sollAbbrechen: () => false });
+  assert.equal(ergebnis.abgebrochen, false);
+  assert.equal(ergebnis.erledigt, 1);
+});
+
+test('auch Aufräumen und Duplikate lassen sich abbrechen', async () => {
+  const dir = ordner();
+  schreibe(dir, 'folder.jpg', 'cover');
+  schreibe(dir, 'com.a.b.png', 'icon');
+  schreibe(dir, 'leer.txt', '');
+  const scan = await sortieren.pruefeAufraeumen(dir, {});
+  assert.equal(scan.plan.length, 3);
+  const ergebnis = await sortieren.fuehreAufraeumenAus(scan, {
+    ziel: dir,
+    entferne: async () => {},
+    sollAbbrechen: () => true,
+  });
+  assert.equal(ergebnis.abgebrochen, true);
+  assert.equal(ergebnis.erledigt, 0);
+});

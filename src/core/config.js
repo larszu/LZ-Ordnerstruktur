@@ -1,7 +1,19 @@
 'use strict';
 
-const { BEREICHE, SOLAS, emptyConfig, normalizeConfig } = require('./structure');
-const { parseIsoDate, toIsoDate, SOLA_TAGE } = require('./dates');
+// Konfigurationsdateien.
+//
+// **JSON ist das einzige Speicherformat.** Das CSV-Format des Windows-Originals
+// lässt sich weiterhin *lesen*, damit alte Dateien nicht verloren gehen — es
+// wird aber nicht mehr geschrieben. Wer eine CSV öffnet, speichert danach als
+// JSON weiter.
+//
+// Jede JSON-Datei trägt eine `version`. Sie ist der Haken, an dem eine spätere
+// Formatänderung migriert werden kann, ohne alte Dateien unlesbar zu machen.
+const { BEREICHE, emptyConfig, normalizeConfig } = require('./structure');
+const { parseIsoDate, toIsoDate } = require('./dates');
+
+/** Fassung des JSON-Formats, die diese App schreibt. */
+const CONFIG_VERSION = 1;
 
 const DL = ';';
 
@@ -12,9 +24,9 @@ const CSV_SOLAS = ['teens', 'kids'];
  * Spaltenreihenfolge der CSV – identisch zum Windows-Original (Alpha-v0.2.x).
  *
  * Das Format kennt nur Teens und Kids und geht von acht Tagen aus. Es bleibt
- * erhalten, damit alte Dateien weiter gelesen werden können; alles darüber
- * hinaus (SOFA, Sola next, abweichende Dauer) passt nur ins JSON-Format.
- * {@link csvVerlust} sagt vorab, was beim Speichern als CSV wegfiele.
+ * erhalten, damit alte Dateien weiter *gelesen* werden können; geschrieben
+ * wird es nicht mehr. Alles darüber hinaus (SOFA, Sola next, abweichende
+ * Dauer, andere Vorlagen) passt ohnehin nur ins JSON-Format.
  */
 const CSV_HEADER = [
   'SolaJahr',
@@ -62,13 +74,6 @@ function parseFlexibleDate(value) {
 }
 
 const toBool = (v) => /^(true|wahr|ja|yes|1|-1)$/i.test(String(v || '').trim());
-const fromBool = (v) => (v ? 'True' : 'False');
-
-/** Feld für die CSV maskieren, falls es Trennzeichen oder Anführungszeichen enthält. */
-function csvFeld(value) {
-  const s = String(value == null ? '' : value);
-  return /["\r\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-}
 
 /** Eine CSV-Zeile in Felder zerlegen (mit Unterstützung für "…"-Maskierung). */
 function csvZeile(zeile) {
@@ -99,36 +104,6 @@ function csvZeile(zeile) {
   }
   felder.push(feld);
   return felder;
-}
-
-/**
- * Serialisiert die Konfiguration im CSV-Format des Windows-Originals.
- * @param {import('./structure').Config} config
- * @returns {string}
- */
-function toCsv(config) {
-  const c = normalizeConfig(config);
-  const datum = (iso) => {
-    const d = parseIsoDate(iso);
-    if (!d) return '';
-    return `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`;
-  };
-
-  const werte = [
-    c.jahr,
-    fromBool(c.teens.aktiv),
-    fromBool(c.kids.aktiv),
-    ...c.teens.fotografen,
-    ...c.teens.videografen,
-    ...c.kids.fotografen,
-    ...c.kids.videografen,
-    ...BEREICHE.map((b) => fromBool(c.teens.bereiche[b.key])),
-    ...BEREICHE.map((b) => fromBool(c.kids.bereiche[b.key])),
-    datum(c.teens.start),
-    datum(c.kids.start),
-  ];
-
-  return `${CSV_HEADER.join(DL)}\r\n${werte.map(csvFeld).join(DL)}\r\n`;
 }
 
 /**
@@ -171,41 +146,59 @@ function fromCsv(text) {
 }
 
 /**
- * Nennt alles, was das CSV-Format des Originals nicht abbilden kann.
- * @param {import('./structure').Config} config
- * @returns {string[]} leer, wenn die CSV verlustfrei wäre
+ * JSON – das Speicherformat dieser App. Die `version` steht bewusst vorn,
+ * damit sie beim Blick in die Datei sofort ins Auge fällt.
  */
-function csvVerlust(config) {
-  const c = normalizeConfig(config);
-  const verlust = [];
-
-  for (const sola of SOLAS) {
-    const daten = c[sola.key];
-    if (!daten.aktiv) continue;
-    if (!CSV_SOLAS.includes(sola.key)) {
-      verlust.push(`${sola.titel} (im CSV-Format nicht vorgesehen)`);
-    } else if (daten.tage !== SOLA_TAGE) {
-      verlust.push(`Dauer von ${sola.titel} (${daten.tage} statt ${SOLA_TAGE} Tage)`);
-    }
-  }
-  return verlust;
-}
-
-/** JSON-Fassung – das bevorzugte Format dieser App. */
 function toJson(config) {
-  return `${JSON.stringify({ version: 1, ...normalizeConfig(config) }, null, 2)}\n`;
+  return `${JSON.stringify({ version: CONFIG_VERSION, ...normalizeConfig(config) }, null, 2)}\n`;
 }
 
-/** @returns {import('./structure').Config} */
+/**
+ * Liest eine JSON-Konfiguration und bringt sie auf die aktuelle Fassung.
+ * @returns {import('./structure').Config}
+ */
 function fromJson(text) {
-  const daten = JSON.parse(text);
+  return migriere(JSON.parse(text));
+}
+
+/**
+ * Hebt eine Konfiguration auf {@link CONFIG_VERSION}.
+ *
+ * Dateien ohne `version` stammen aus der Zeit vor dieser Zählung und gelten als
+ * Fassung 1. Eine Datei aus einer *neueren* App lässt sich nicht rückwärts
+ * übersetzen — dann ist ein klarer Fehler besser als stilles Datenverlieren.
+ */
+function migriere(daten) {
+  const version = Number(daten && daten.version) || 1;
+  if (version > CONFIG_VERSION) {
+    throw new Error(
+      `Diese Datei ist in Fassung ${version} gespeichert, diese App kennt nur ${CONFIG_VERSION}. `
+      + 'Bitte die App aktualisieren.',
+    );
+  }
+  // Künftige Migrationen kommen hier hin, Fassung für Fassung.
   return normalizeConfig(daten);
 }
 
-/** Wählt anhand der Dateiendung bzw. des Inhalts das passende Format. */
+/**
+ * Wählt anhand der Dateiendung bzw. des Inhalts das passende Format.
+ * @returns {{config: object, format: 'json'|'csv'}}
+ */
 function parseConfig(text, dateiname = '') {
-  if (/\.json$/i.test(dateiname) || String(text).trim().startsWith('{')) return fromJson(text);
-  return fromCsv(text);
+  if (/\.json$/i.test(dateiname) || String(text).trim().startsWith('{')) {
+    return { config: fromJson(text), format: 'json' };
+  }
+  return { config: fromCsv(text), format: 'csv' };
 }
 
-module.exports = { CSV_HEADER, CSV_SOLAS, toCsv, fromCsv, toJson, fromJson, parseConfig, parseFlexibleDate, csvVerlust };
+module.exports = {
+  CONFIG_VERSION,
+  CSV_HEADER,
+  CSV_SOLAS,
+  fromCsv,
+  toJson,
+  fromJson,
+  migriere,
+  parseConfig,
+  parseFlexibleDate,
+};

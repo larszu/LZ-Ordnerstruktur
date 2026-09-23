@@ -6,36 +6,59 @@
 // Metadaten benutzt, es verändert keine Dateien.
 const { execFile, execFileSync } = require('child_process');
 const path = require('path');
+const mitgeliefert = require('./mitgeliefert');
 
 const IST_WINDOWS = process.platform === 'win32';
 
 /**
- * Sucht `exiftool` an den üblichen Stellen. Über SOLA_EXIFTOOL lässt sich ein
- * fester Pfad vorgeben (für Tests oder ein mitgeliefertes Binary).
- * @returns {string|null} aufrufbarer Pfad oder null
+ * Sucht ExifTool — in dieser Reihenfolge:
+ *
+ *   1. `LZ_EXIFTOOL` bzw. `SOLA_EXIFTOOL`, falls jemand einen Pfad vorgibt
+ *   2. die **mitgelieferte** Fassung im Paket (der Normalfall)
+ *   3. ein selbst installiertes ExifTool im Pfad oder bei Homebrew
+ *
+ * Punkt 3 bleibt erhalten, damit ein neueres, selbst gepflegtes ExifTool
+ * weiterhin benutzt werden kann — es geht der mitgelieferten Fassung aber
+ * nicht vor, sonst hinge das Verhalten der App am Rechner.
+ *
+ * @returns {{programm: string, vorArgs: string[], quelle: string}|null}
  */
 function findeExiftool() {
-  const kandidaten = [
-    process.env.SOLA_EXIFTOOL,
+  const vorgabe = process.env.LZ_EXIFTOOL || process.env.SOLA_EXIFTOOL;
+  if (vorgabe && pruefe({ programm: vorgabe, vorArgs: [] })) {
+    return { programm: vorgabe, vorArgs: [], quelle: 'vorgegeben' };
+  }
+
+  const paket = mitgeliefert.exiftoolBefehl();
+  if (paket && pruefe(paket)) return paket;
+
+  for (const kandidat of [
     IST_WINDOWS ? 'exiftool.exe' : 'exiftool',
     '/opt/homebrew/bin/exiftool',
     '/usr/local/bin/exiftool',
     '/usr/bin/exiftool',
     '/opt/local/bin/exiftool',
-  ].filter(Boolean);
-
-  for (const kandidat of kandidaten) {
-    try {
-      execFileSync(kandidat, ['-ver'], { stdio: 'ignore', timeout: 5000 });
-      return kandidat;
-    } catch (_) {
-      // nächsten Kandidaten versuchen
-    }
+  ]) {
+    const befehl = { programm: kandidat, vorArgs: [], quelle: 'selbst installiert' };
+    if (pruefe(befehl)) return befehl;
   }
   return null;
 }
 
-const EXIFTOOL = findeExiftool();
+/** Ruft `-ver` auf; nur was antwortet, gilt als brauchbar. */
+function pruefe(befehl) {
+  try {
+    execFileSync(befehl.programm, [...befehl.vorArgs, '-ver'], { stdio: 'ignore', timeout: 10000 });
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+const BEFEHL = findeExiftool();
+
+/** Der reine Programmpfad — für Anzeige und Rückwärtskompatibilität. */
+const EXIFTOOL = BEFEHL ? (BEFEHL.vorArgs[0] || BEFEHL.programm) : null;
 
 /** Felder, die der Import ausliest. */
 const FELDER = [
@@ -62,8 +85,9 @@ function schluessel(pfad) {
  */
 function leseMetadaten(pfade) {
   return new Promise((resolve) => {
-    if (!EXIFTOOL || !pfade || pfade.length === 0) return resolve({});
+    if (!BEFEHL || !pfade || pfade.length === 0) return resolve({});
     const args = [
+      ...BEFEHL.vorArgs,
       '-q', '-m', '-fast2',
       '-charset', 'filename=utf8', // Umlaute in Pfaden (z.B. 05_Jürgen) unter Windows
       '-api', 'QuickTimeUTC', // QuickTime-Zeiten stehen in UTC -> lokale Zeit
@@ -72,7 +96,7 @@ function leseMetadaten(pfade) {
       ...FELDER.map((f) => `-${f}`),
       '-@', '-',
     ];
-    const kind = execFile(EXIFTOOL, args, { maxBuffer: 1 << 28 }, (_err, stdout) => {
+    const kind = execFile(BEFEHL.programm, args, { maxBuffer: 1 << 28 }, (_err, stdout) => {
       const daten = {};
       try {
         for (const eintrag of JSON.parse(stdout || '[]')) {
@@ -91,8 +115,10 @@ function leseMetadaten(pfade) {
 }
 
 module.exports = {
+  BEFEHL,
   EXIFTOOL,
-  vorhanden: Boolean(EXIFTOOL),
+  vorhanden: Boolean(BEFEHL),
+  quelle: BEFEHL ? BEFEHL.quelle : '',
   FELDER,
   schluessel,
   leseMetadaten,

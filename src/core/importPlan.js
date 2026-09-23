@@ -7,6 +7,10 @@
 const path = require('path');
 const { zielordnerFuerVorlage } = require('./structure');
 const { VORLAGE_SOLA } = require('./vorlagen');
+const kameras = require('./kameras');
+
+/** Wert für „Person automatisch aus der Kamera bestimmen". */
+const PERSON_AUTOMATISCH = '*auto*';
 const { sanitizeSegment } = require('./validate');
 
 const nr = (n) => String(n).padStart(2, '0');
@@ -92,11 +96,34 @@ const SCHEMATA = [
     beschreibung: 'In die Tages- und Personenordner der gewählten Vorlage – beim Sola also Foto nach 01_ImportRAW, Video nach 01_Rohvideos.',
     braucht: ['sola', 'bereich', 'person'],
     vorbereiten({ ktx, config }) {
-      const z = zielordnerFuerVorlage(ktx.vorlage || VORLAGE_SOLA, config, {
-        projektKey: ktx.projektKey || ktx.solaKey,
-        bereich: ktx.bereich,
-        person: ktx.person,
-      });
+      const auswahl = { projektKey: ktx.projektKey || ktx.solaKey, bereich: ktx.bereich };
+      // Bei „Person automatisch" wird je Kamera ein eigener Zielsatz gebraucht.
+      // Deshalb werden hier alle zugeordneten Personen vorbereitet.
+      if (ktx.person === PERSON_AUTOMATISCH) {
+        const jeName = {};
+        const warnungen = [];
+        let jahr = '';
+        const namen = [...new Set(kameras.normalisiereKameras(ktx.kameras).map((k) => k.person).filter(Boolean))];
+        if (namen.length === 0) {
+          return { jahr: '', ziele: {}, warnungen, fehler: 'Keiner Kamera ist eine Person zugeordnet — bitte unter „Kameras" eintragen.' };
+        }
+        for (const person of namen) {
+          const z = zielordnerFuerVorlage(ktx.vorlage || VORLAGE_SOLA, config, { ...auswahl, person });
+          jahr = jahr || z.jahr;
+          if (Object.keys(z.ziele).length === 0) warnungen.push(...z.warnungen);
+          else jeName[person] = z.ziele;
+        }
+        const leer = Object.keys(jeName).length === 0;
+        return {
+          jahr,
+          ziele: {},
+          jeName,
+          warnungen,
+          fehler: leer ? (warnungen[0] || 'Keine Zielordner ermittelbar.') : null,
+        };
+      }
+
+      const z = zielordnerFuerVorlage(ktx.vorlage || VORLAGE_SOLA, config, { ...auswahl, person: ktx.person });
       const leer = Object.keys(z.ziele).length === 0;
       return {
         jahr: z.jahr,
@@ -106,8 +133,17 @@ const SCHEMATA = [
       };
     },
     ziel(sctx, info, d, ktx) {
-      const rel = sctx.ziele[d.datum];
-      if (!rel) return { skip: true, grund: `Datum ${d.datum} liegt außerhalb der Sola-Tage` };
+      let ziele = sctx.ziele;
+      if (sctx.jeName) {
+        const kamera = kameras.findeKamera(ktx.kameras, info.exif);
+        if (!kamera || !kamera.person) {
+          return { skip: true, grund: 'Kamera keiner Person zugeordnet' };
+        }
+        ziele = sctx.jeName[kamera.person];
+        if (!ziele) return { skip: true, grund: `„${kamera.person}" steht nicht in der Namensliste` };
+      }
+      const rel = ziele[d.datum];
+      if (!rel) return { skip: true, grund: `Datum ${d.datum} liegt außerhalb der Tage` };
       return { rel, zielName: ktx.umbenennen ? umbenannt(info.name, d) : info.name };
     },
   },
@@ -158,7 +194,11 @@ function buildImportPlan({ dateien = [], schema, ktx = {}, config } = {}) {
   const plan = [];
   const uebersprungen = [];
   for (const info of dateien) {
-    const d = bestimmeDatum(info);
+    let d = bestimmeDatum(info);
+    // Geht die Uhr der Kamera falsch, wird hier gerade gerückt — nur für die
+    // Zuordnung, die Datei selbst bleibt unverändert.
+    const kamera = kameras.findeKamera(ktx.kameras, info.exif);
+    if (d && kamera && kamera.versatzMinuten) d = kameras.wendeVersatzAn(d, kamera.versatzMinuten);
     if (!d) {
       uebersprungen.push({ von: info.pfad, grund: 'kein Aufnahmedatum ermittelbar' });
       continue;
@@ -177,6 +217,7 @@ function buildImportPlan({ dateien = [], schema, ktx = {}, config } = {}) {
       quelle: d.quelle,
       ts: tsAus(d),
       art: info.art || '',
+      kamera: kamera ? (kamera.person || kamera.modell || kamera.id) : '',
     });
   }
 
@@ -193,6 +234,7 @@ function buildImportPlan({ dateien = [], schema, ktx = {}, config } = {}) {
 }
 
 module.exports = {
+  PERSON_AUTOMATISCH,
   SCHEMATA,
   schemaListe,
   buildImportPlan,

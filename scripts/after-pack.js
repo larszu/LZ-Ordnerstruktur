@@ -1,7 +1,12 @@
 'use strict';
 
 /**
- * Ad-hoc-Signatur für die gepackte macOS-App.
+ * Was nach dem Packen und vor dem Bau von DMG bzw. Installer passiert:
+ *
+ *   1. prüfen, dass ExifTool wirklich im Paket liegt
+ *   2. auf macOS die App ad hoc signieren
+ *
+ * Zu 2 — Ad-hoc-Signatur für die gepackte macOS-App.
  *
  * Ohne ein (kostenpflichtiges) Apple-Developer-Zertifikat überspringt
  * electron-builder das Signieren ganz. Übrig bleibt dann nur die
@@ -23,11 +28,47 @@
  * Läuft als `afterPack`-Haken, also bevor DMG und ZIP gebaut werden.
  */
 
+const fs = require('fs');
 const { execFileSync } = require('child_process');
 const path = require('path');
 
+/**
+ * Wo ExifTool im fertigen Paket liegen muss, je Plattform.
+ * `exiftool-vendored.exe` ist auf Windows beschränkt und wird auf anderen
+ * Rechnern von npm übersprungen — wer von macOS aus für Windows baut, bekäme
+ * sonst still ein Paket ohne ExifTool. Deshalb wird hier hart geprüft.
+ */
+const EXIFTOOL_PFLICHT = {
+  darwin: ['exiftool', 'exiftool'],
+  win32: ['exiftool', 'exiftool.exe'],
+  linux: ['exiftool', 'exiftool'],
+};
+
 /** @param {import('electron-builder').AfterPackContext} kontext */
-module.exports = async function adhocSign(kontext) {
+function pruefeExiftool(kontext) {
+  const teile = EXIFTOOL_PFLICHT[kontext.electronPlatformName];
+  if (!teile) return;
+
+  const name = kontext.packager.appInfo.productFilename;
+  const resources = kontext.electronPlatformName === 'darwin'
+    ? path.join(kontext.appOutDir, `${name}.app`, 'Contents', 'Resources')
+    : path.join(kontext.appOutDir, 'resources');
+
+  const ziel = path.join(resources, ...teile);
+  if (fs.existsSync(ziel)) {
+    console.log(`  • ExifTool im Paket  ${path.relative(resources, ziel)}`);
+    return;
+  }
+  throw new Error(
+    `ExifTool fehlt im Paket (erwartet: ${ziel}).\n`
+    + 'Das passiert, wenn das plattformeigene Paket nicht installiert ist — etwa weil von\n'
+    + 'macOS aus für Windows gebaut wird. Abhilfe: npm run exiftool',
+  );
+}
+
+/** @param {import('electron-builder').AfterPackContext} kontext */
+module.exports = async function afterPack(kontext) {
+  pruefeExiftool(kontext);
   if (kontext.electronPlatformName !== 'darwin') return;
 
   // Ist richtig signiert worden, wird hier nichts angefasst.

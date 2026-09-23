@@ -1,0 +1,27 @@
+ExifTool
+========
+
+Diese Anwendung liefert ExifTool von Phil Harvey mit. ExifTool wird nur zum
+Lesen und – auf ausdrückliche Anweisung – zum Schreiben von Metadaten in den
+Dateien der Nutzerin bzw. des Nutzers aufgerufen.
+
+    Copyright 2003-2026, Phil Harvey
+    https://exiftool.org
+
+ExifTool ist freie Software und darf unter denselben Bedingungen weitergegeben
+und verändert werden wie Perl selbst, also wahlweise unter
+
+    * der Perl Artistic License, oder
+    * der GNU General Public License (GPL).
+
+Den vollständigen Lizenztext und die Dokumentation enthält die mitgelieferte
+ExifTool-Fassung selbst (Datei `README` im Ordner `exiftool` neben dieser
+Datei).
+
+Die mitgelieferten Fassungen stammen aus den Paketen `exiftool-vendored.pl`
+(macOS und Linux) und `exiftool-vendored.exe` (Windows); die Version steht in
+der Datei `vendor-manifest.json` des jeweiligen Pakets.
+
+LZ Ordnerstruktur selbst steht unter der MIT-Lizenz (siehe LICENSE). Die
+Lizenzen berühren sich nicht: ExifTool wird als eigenständiges Programm
+aufgerufen, nicht in die Anwendung hineingelinkt.

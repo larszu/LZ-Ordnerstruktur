@@ -54,17 +54,30 @@ async function init() {
   zustand.schemata = info.schemata;
   zustand.methoden = info.methoden;
   zustand.vorlage = info.vorlage;
+  zustand.personAutomatisch = info.personAutomatisch;
+  zustand.einstellungen = info.einstellungen || {};
   zustand.zielBasis = info.zielordner || '';
 
   $('werkzeugHinweis').innerHTML = info.exiftool
-    ? 'ExifTool gefunden ✓ — Aufnahmedatum kommt aus den Metadaten.'
-    : '<span class="warn">ExifTool nicht gefunden</span> — Datum aus Dateiname oder Änderungsdatum. Für zuverlässige Aufnahmedaten ExifTool installieren (exiftool.org).';
+    ? (info.exiftoolQuelle === 'mitgeliefert'
+        ? 'ExifTool ist mitgeliefert ✓ — das Aufnahmedatum kommt aus den Metadaten.'
+        : 'ExifTool gefunden ✓ — das Aufnahmedatum kommt aus den Metadaten.')
+    : '<span class="warn">ExifTool lässt sich nicht starten</span> — Datum aus Dateiname oder Änderungsdatum.';
 
   fuelleSelect($('schema'), zustand.schemata.map((s) => ({ value: s.key, text: s.label })), '—');
   fuelleSelect($('methode'), zustand.methoden.map((m) => ({ value: m.key, text: m.label })), '—');
 
   $('schema').addEventListener('change', () => { setzeBereit(false); aktualisiereFelder(); });
-  for (const id of ['sola', 'bereich', 'person', 'umbenennen', 'handy', 'methode']) {
+  for (const id of ['metaSchreiben', 'gpsEntfernen']) {
+    $(id).addEventListener('change', zeigeMetaHinweis);
+  }
+  // Die Metadaten-Wünsche kommen aus dem Hauptfenster (Ansicht „Kameras").
+  const meta = zustand.einstellungen.metadaten || {};
+  $('metaSchreiben').checked = Boolean(meta.urheber || meta.rechte || meta.stichworte);
+  $('gpsEntfernen').checked = Boolean(meta.gpsEntfernen);
+  zeigeMetaHinweis();
+
+  for (const id of ['sola', 'bereich', 'person', 'umbenennen', 'handy', 'methode', 'metaSchreiben', 'gpsEntfernen']) {
     $(id).addEventListener('change', () => { setzeBereit(false); aktualisiereFelder(); });
   }
 
@@ -79,6 +92,11 @@ async function init() {
   });
   $('btnVergleichen').addEventListener('click', vergleichen);
   $('btnKopieren').addEventListener('click', kopieren);
+  $('btnAbbrechen').addEventListener('click', () => {
+    $('btnAbbrechen').disabled = true;
+    $('btnAbbrechen').textContent = 'Halte an …';
+    lz.abbrechen('import');
+  });
 
   lz.aufImportFortschritt((d) => { $('fortschritt').textContent = d.text; });
 
@@ -160,7 +178,13 @@ function fuelleSolaFelder() {
   const namen = daten && bereich
     ? daten[bereich.personenListe].filter(Boolean).map((n) => ({ value: n, text: n }))
     : [];
-  fuelleSelect($('person'), namen, 'Keine Namen eingetragen');
+  // „Automatisch" nur anbieten, wenn überhaupt eine Kamera zugeordnet ist —
+  // sonst wählt man etwas, das sicher nichts findet.
+  const zugeordnet = (zustand.einstellungen.kameras || []).some((k) => k.person);
+  const auswahl = zugeordnet
+    ? [{ value: zustand.personAutomatisch, text: 'automatisch — nach Kamera' }, ...namen]
+    : namen;
+  fuelleSelect($('person'), auswahl, 'Keine Namen eingetragen');
 }
 
 function fuelleSelect(select, optionen, leerText) {
@@ -202,6 +226,38 @@ function baueKtx() {
   return { umbenennen: $('umbenennen').checked, unterordner: $('handy').checked ? '_Handy' : '' };
 }
 
+/** Was nach dem Kopieren in die Kopien geschrieben werden soll. */
+function baueMetadatenWunsch() {
+  const meta = zustand.einstellungen.metadaten || {};
+  const schreiben = $('metaSchreiben').checked;
+  return {
+    urheber: schreiben ? meta.urheber : '',
+    rechte: schreiben ? meta.rechte : '',
+    stichworte: schreiben ? String(meta.stichworte || '').split(',').map((w) => w.trim()).filter(Boolean) : [],
+    gpsEntfernen: $('gpsEntfernen').checked,
+  };
+}
+
+/** Sagt im Klartext, was geschrieben wird — sonst rät man beim Häkchen. */
+function zeigeMetaHinweis() {
+  const wunsch = baueMetadatenWunsch();
+  const teile = [];
+  if (wunsch.urheber) teile.push(`Urheber „${wunsch.urheber}"`);
+  if (wunsch.rechte) teile.push(`Rechte „${wunsch.rechte}"`);
+  if (wunsch.stichworte.length) teile.push(`Stichwörter ${wunsch.stichworte.join(', ')}`);
+  if (wunsch.gpsEntfernen) teile.push('Ortsangaben werden entfernt');
+
+  const meta = zustand.einstellungen.metadaten || {};
+  if ($('metaSchreiben').checked && !meta.urheber && !meta.rechte && !meta.stichworte) {
+    $('metaInfo').innerHTML = '<span class="warn">Es ist nichts hinterlegt</span> — '
+      + 'im Hauptfenster unter „Kameras" eintragen, was in die Dateien soll.';
+    return;
+  }
+  $('metaInfo').textContent = teile.length
+    ? `In die Kopien kommt: ${teile.join(' · ')}.`
+    : 'Es werden keine Metadaten geschrieben.';
+}
+
 function setzeBereit(bereit) {
   zustand.bereit = bereit;
   $('btnKopieren').disabled = !bereit || !zustand.zielBasis;
@@ -234,6 +290,8 @@ async function vergleichen() {
     return;
   }
 
+  if (antwort.kameras) zustand.einstellungen.kameras = antwort.kameras;
+  aktualisiereFelder();
   meldungen((antwort.warnungen || []).map((text) => ({ art: 'warnung', text })));
 
   const k = antwort.kategorien;
@@ -288,15 +346,20 @@ async function kopieren() {
   if (!zustand.bereit || !zustand.zielBasis) return;
   $('btnKopieren').disabled = true;
   $('btnVergleichen').disabled = true;
+  $('btnAbbrechen').hidden = false;
+  $('btnAbbrechen').disabled = false;
+  $('btnAbbrechen').textContent = 'Abbrechen';
   $('fortschritt').textContent = 'Kopiere …';
 
   const antwort = await lz.importKopieren({
     zielBasis: zustand.zielBasis,
     verschieben: $('verschieben').checked,
     methode: $('methode').value,
+    metadatenWunsch: baueMetadatenWunsch(),
   });
 
   $('btnVergleichen').disabled = !kannVergleichen();
+  $('btnAbbrechen').hidden = true;
   zustand.bereit = false;
   if (!antwort.ok) {
     $('fortschritt').textContent = '';
@@ -306,8 +369,11 @@ async function kopieren() {
 
   const liste = antwort.fehler.map((f) => ({ art: 'fehler', text: `${f.von || ''}: ${f.grund}` }));
   liste.unshift({
-    art: antwort.fehler.length ? 'warnung' : 'erfolg',
-    text: `${antwort.erledigt} Dateien ${antwort.modus}` + (antwort.uebersprungen ? `, ${antwort.uebersprungen} schon vorhanden` : '') + '.',
+    art: antwort.abgebrochen ? 'warnung' : (antwort.fehler.length ? 'warnung' : 'erfolg'),
+    text: `${antwort.erledigt} Dateien ${antwort.modus}`
+      + (antwort.uebersprungen ? `, ${antwort.uebersprungen} schon vorhanden` : '')
+      + (antwort.metadaten ? `, ${antwort.metadaten} mit Metadaten versehen` : '')
+      + (antwort.abgebrochen ? ' — abgebrochen. Ein erneuter Vergleich zeigt, was noch fehlt.' : '.'),
     knopf: { text: 'Zielordner zeigen', aktion: () => lz.ordnerOeffnen(zustand.zielBasis) },
   });
   meldungen(liste);

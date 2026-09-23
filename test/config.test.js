@@ -2,9 +2,21 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('fs');
+const path = require('path');
 
-const { toCsv, fromCsv, toJson, fromJson, parseConfig, parseFlexibleDate, CSV_HEADER } = require('../src/core/config');
+const {
+  CONFIG_VERSION,
+  CSV_HEADER,
+  fromCsv,
+  toJson,
+  fromJson,
+  migriere,
+  parseConfig,
+  parseFlexibleDate,
+} = require('../src/core/config');
 const { emptyConfig } = require('../src/core/structure');
+const config = require('../src/core/config');
 
 function beispiel() {
   const c = emptyConfig();
@@ -21,16 +33,48 @@ function beispiel() {
   return c;
 }
 
-test('CSV überlebt einen Speichern-Laden-Umlauf', () => {
-  const original = beispiel();
-  const zurueck = fromCsv(toCsv(original));
-  assert.deepEqual(zurueck, original);
-});
+/** Baut eine CSV-Zeile im Format des Windows-Originals. */
+function alsCsv(werte) {
+  const feld = (v) => (/["\r\n;]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v));
+  return `${CSV_HEADER.join(';')}\r\n${werte.map(feld).join(';')}\r\n`;
+}
+
+// --- JSON ist das Speicherformat -------------------------------------------
 
 test('JSON überlebt einen Speichern-Laden-Umlauf', () => {
   const original = beispiel();
   assert.deepEqual(fromJson(toJson(original)), original);
 });
+
+test('gespeichertes JSON trägt seine Fassung', () => {
+  const daten = JSON.parse(toJson(beispiel()));
+  assert.equal(daten.version, CONFIG_VERSION);
+  // Die Fassung steht vorn, damit sie beim Blick in die Datei auffällt.
+  assert.equal(Object.keys(daten)[0], 'version');
+});
+
+test('CSV lässt sich nur noch lesen, nicht mehr schreiben', () => {
+  assert.equal(typeof config.fromCsv, 'function');
+  assert.equal(config.toCsv, undefined, 'toCsv darf es nicht mehr geben');
+  assert.equal(config.csvVerlust, undefined, 'csvVerlust hing am Schreiben und ist weg');
+});
+
+// --- Versionierung ----------------------------------------------------------
+
+test('eine Datei ohne Fassung gilt als Fassung 1', () => {
+  const ohne = { ...beispiel() };
+  delete ohne.version;
+  assert.deepEqual(migriere(ohne), beispiel());
+});
+
+test('eine Datei aus einer neueren App wird nicht stillschweigend verstümmelt', () => {
+  assert.throws(
+    () => migriere({ ...beispiel(), version: CONFIG_VERSION + 1 }),
+    /Fassung .* diese App kennt nur/,
+  );
+});
+
+// --- CSV-Import (Legacy) ----------------------------------------------------
 
 test('die CSV-Spalten entsprechen dem Windows-Original', () => {
   assert.equal(CSV_HEADER.length, 61);
@@ -44,7 +88,7 @@ test('die CSV-Spalten entsprechen dem Windows-Original', () => {
 
 test('eine CSV aus dem Windows-Original wird gelesen', () => {
   // Nachgestellte Zeile, wie das VB-Programm sie schreibt: True/False, dd-MM-yyyy.
-  const werte = [
+  const c = fromCsv(alsCsv([
     '2022',
     'True',
     'False',
@@ -56,20 +100,36 @@ test('eine CSV aus dem Windows-Original wird gelesen', () => {
     ...Array(8).fill('False'),
     '13-06-2022',
     '',
-  ];
-  const csv = `${CSV_HEADER.join(';')}\r\n${werte.join(';')}\r\n`;
+  ]));
 
-  const config = fromCsv(csv);
-  assert.equal(config.jahr, '2022');
-  assert.equal(config.teens.aktiv, true);
-  assert.equal(config.kids.aktiv, false);
-  assert.equal(config.teens.start, '2022-06-13');
-  assert.equal(config.teens.fotografen[0], 'Lars');
-  assert.equal(config.teens.videografen[0], 'Maja');
+  assert.equal(c.jahr, '2022');
+  assert.equal(c.teens.aktiv, true);
+  assert.equal(c.kids.aktiv, false);
+  assert.equal(c.teens.start, '2022-06-13');
+  assert.equal(c.teens.fotografen[0], 'Lars');
+  assert.equal(c.teens.videografen[0], 'Maja');
   assert.deepEqual(
-    Object.entries(config.teens.bereiche).filter(([, an]) => an).map(([k]) => k),
+    Object.entries(c.teens.bereiche).filter(([, an]) => an).map(([k]) => k),
     ['foto', 'video', 'orga'],
   );
+});
+
+test('eine echte Altdatei lässt sich öffnen und als JSON weiterspeichern', () => {
+  const text = fs.readFileSync(path.join(__dirname, 'fixtures', 'windows-original.csv'), 'utf8');
+  const { config: c, format } = parseConfig(text, 'alte.csv');
+  assert.equal(format, 'csv');
+  assert.equal(c.jahr, '2026');
+  assert.equal(c.teens.fotografen[0], 'Lars');
+  assert.equal(c.kids.bereiche.showfiles, true);
+
+  // Der Weg aus dem Issue: alte.csv -> interne Konfiguration -> config.json
+  const zurueck = fromJson(toJson(c));
+  assert.deepEqual(zurueck, c);
+});
+
+test('Namen mit Semikolon zerlegen die CSV nicht', () => {
+  const werte = ['2026', 'True', 'False', 'Meier; Lars', ...Array(57).fill('')];
+  assert.equal(fromCsv(alsCsv(werte)).teens.fotografen[0], 'Meier; Lars');
 });
 
 test('Datumsangaben werden in mehreren Schreibweisen erkannt', () => {
@@ -82,19 +142,14 @@ test('Datumsangaben werden in mehreren Schreibweisen erkannt', () => {
   assert.equal(parseFlexibleDate('Unsinn'), '');
 });
 
-test('Namen mit Semikolon zerlegen die CSV nicht', () => {
-  const c = emptyConfig();
-  c.teens.aktiv = true;
-  c.teens.fotografen[0] = 'Meier; Lars';
-  assert.equal(fromCsv(toCsv(c)).teens.fotografen[0], 'Meier; Lars');
-});
+// --- Formaterkennung --------------------------------------------------------
 
-test('parseConfig erkennt das Format', () => {
+test('parseConfig erkennt das Format und sagt es dazu', () => {
   const c = beispiel();
-  assert.deepEqual(parseConfig(toJson(c), 'x.json'), c);
-  assert.deepEqual(parseConfig(toCsv(c), 'x.csv'), c);
+  assert.deepEqual(parseConfig(toJson(c), 'x.json'), { config: c, format: 'json' });
   // Ohne Dateiname entscheidet der Inhalt.
-  assert.deepEqual(parseConfig(toJson(c)), c);
+  assert.equal(parseConfig(toJson(c)).format, 'json');
+  assert.equal(parseConfig(fs.readFileSync(path.join(__dirname, 'fixtures', 'windows-original.csv'), 'utf8'), 'x.csv').format, 'csv');
 });
 
 test('kaputte Dateien melden einen Fehler', () => {

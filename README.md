@@ -30,6 +30,8 @@ jetzt in einer App.
 | Die Vorlage in der Oberfläche ändern | … und sofort sehen, was dabei herauskommt |
 | ![Fotos einsortieren](docs/screenshots/08-fotos.png) | ![Überflüssiges entfernen](docs/screenshots/09-aufraeumen.png) |
 | Fotos nach Aufnahmedatum einsortieren | Aufräumen, Kategorie für Kategorie |
+| ![Kameras](docs/screenshots/11-kameras.png) | |
+| Kameras zuordnen, Uhrzeit geraderücken, GPS entfernen | |
 | ![Ordnerstruktur angelegt](docs/screenshots/03-erstellt.png) | ![Lightroom-Vorgaben](docs/screenshots/04-vorgaben.png) |
 | Angelegt — Vorschau und Ergebnis stimmen überein | Verwaltung der Lightroom-Vorgaben |
 
@@ -57,6 +59,12 @@ Die App fasst Dateien an — deshalb gilt überall dasselbe:
   (`_1`, `_2` …).
 * **Entfernt wird in den Papierkorb**, nicht endgültig gelöscht (abschaltbar
   unter *Hilfe & Einstellungen*).
+* **Abbrechen jederzeit.** Ein langer Lauf lässt sich anhalten. Die gerade
+  bearbeitete Datei wird fertig geschrieben, dann hört er auf — es bleibt keine
+  halbe Datei liegen. Der Rest steht noch, ein Klick macht dort weiter.
+* **Nach dem Kopieren geprüft.** Der Import vergleicht die Größe von Quelle und
+  Kopie. Eine volle Platte oder eine mitten im Lauf abgezogene Karte fällt so
+  sofort auf, nicht erst Wochen später.
 * **Protokoll.** Jeder Lauf schreibt mit, was er getan hat — im Zielordner
   unter `_Sortier-Protokolle` bzw. `_Import-Protokolle`.
 * **Alles bleibt lokal.** Die App lädt nichts ins Internet.
@@ -85,42 +93,54 @@ kostenpflichtiges Apple-Developer- bzw. Code-Signing-Zertifikat.
 * **Windows:** SmartScreen zeigt *„Der Computer wurde geschützt"* →
   *Weitere Informationen* → *Trotzdem ausführen*.
 
-#### Warum die App nicht mehr „beschädigt" ist
+#### macOS: was beim ersten Start passiert
+
+Ohne ein Apple-Developer-Zertifikat (99 $/Jahr) lässt sich eine App **nicht
+notarisieren**. Apples eigenes Prüfwerkzeug sagt das deutlich:
+
+```
+$ syspolicy_check distribution "LZ Ordnerstruktur.app"
+Adhoc Signed App        Severity: Warning
+Notary Ticket Missing   Severity: Fatal
+```
+
+Heruntergeladene Pakete bleiben deshalb bei Gatekeeper hängen. Was sich
+verbessern ließ, ist die **Art** der Sperre:
 
 Ohne Zertifikat überspringt electron-builder das Signieren vollständig. Übrig
 bleibt dann nur die `linker-signed`-Signatur der Electron-Binärdatei — sie
-deckt weder die `Info.plist` noch die Ressourcen ab (`Sealed Resources=none`),
-und `codesign --verify` meldet *„code has no resources but signature indicates
-they must be present"*. Auf Apple Silicon führt genau das dazu, dass der Finder
-nicht „unbekannter Entwickler" sagt, sondern **„… ist beschädigt und kann nicht
-geöffnet werden"** — obwohl an der Datei nichts fehlt.
+deckt weder die `Info.plist` noch die Ressourcen ab, und `codesign --verify`
+meldet *"code has no resources but signature indicates they must be present"*.
+Auf Apple Silicon führt genau diese **kaputte** Signatur zur Meldung
+"… ist beschädigt und kann nicht geöffnet werden".
 
-`scripts/adhoc-sign.js` hängt sich deshalb als `afterPack` in den Bau und
-signiert das fertige Bundle **ad hoc** (`codesign --sign -`). Das versiegelt die
-App ohne Zertifikat; sie gilt weiterhin als nicht verifiziert, aber nicht mehr
-als beschädigt. Ist ein echtes Zertifikat gesetzt (`CSC_LINK`/`CSC_NAME`), hält
-sich der Haken heraus.
+`scripts/after-pack.js` signiert das fertige Bundle deshalb **ad hoc**
+(`codesign --sign -`). Danach ist die Signatur gültig und versiegelt:
 
-Wer trotzdem einmal auf eine „beschädigte" Datei stößt — etwa ein älteres
-Release —, entfernt die Quarantäne-Markierung von Hand:
+```
+Identifier=de.zumpe.lz-ordnerstruktur     (vorher: Electron)
+Info.plist entries=32                     (vorher: not bound)
+Sealed Resources version=2 rules=13       (vorher: none)
+valid on disk · satisfies its Designated Requirement
+```
+
+Die App gilt damit als "von einem nicht verifizierten Entwickler" — nicht mehr
+als beschädigt. **Beim ersten Start:**
+
+1. Rechtsklick auf die App → *Öffnen* → im Dialog noch einmal *Öffnen*.
+2. Geht das nicht (macOS 15 und neuer), einmal starten, dann
+   *Systemeinstellungen → Datenschutz & Sicherheit* öffnen; dort steht die App
+   mit dem Knopf **Trotzdem öffnen**.
+3. Bleibt es bei "beschädigt" — etwa bei einem älteren Release —, die
+   Quarantäne-Markierung von Hand entfernen:
 
 ```bash
 xattr -dr com.apple.quarantine "/Applications/LZ Ordnerstruktur.app"
 ```
 
-### Freiwillige Hilfsprogramme
+Ist ein echtes Zertifikat hinterlegt (`CSC_LINK`/`CSC_NAME`), hält sich der
+Ad-hoc-Haken heraus und es wird regulär signiert.
 
-Beide sind optional; ohne sie arbeitet die App weiter, weiß aber weniger über
-die Dateien. *Hilfe & Einstellungen* zeigt, was gefunden wurde.
-
-```bash
-brew install exiftool   # zuverlässige Aufnahmedaten, besonders bei RAW und Video
-brew install poppler    # pdftotext: liest den Text aus PDF-Dateien
-```
-
-Unter Windows: [exiftool.org](https://exiftool.org) bzw. die
-poppler-utils. Ohne ExifTool kommt das Aufnahmedatum aus Dateiname oder
-Änderungsdatum; ohne pdftotext landen PDFs unter *Scans ohne Textebene*.
 
 ## Ordnerstruktur anlegen
 
@@ -243,15 +263,35 @@ Sonst gilt: gleiche Ordnernamen, gleiche Nummerierung, gleiche Lightroom-Vorgabe
 
 #### Konfigurationsdateien
 
-Gespeichert wird als **JSON**; bei der Sola-Vorlage zusätzlich als **CSV** im
-Format des Windows-Originals — CSV-Dateien aus der alten Version lassen sich
-also direkt laden. Beim Datum werden `dd-MM-yyyy`, `dd.MM.yyyy`, `MM/dd/yyyy`
-und ISO `yyyy-MM-dd` erkannt.
+**JSON ist das Speicherformat.** Das CSV des Windows-Originals lässt sich
+weiterhin *öffnen*, wird aber nicht mehr geschrieben:
 
-Das alte CSV-Format kennt allerdings nur Teens und Kids mit acht Tagen. Wer
-SOFA, Sola next oder eine abweichende Dauer eingestellt hat und trotzdem als
-CSV speichert, bekommt beim Speichern aufgelistet, was dabei wegfällt — für den
-vollständigen Stand ist JSON das Format.
+```text
+alte.csv  →  CSV-Import  →  interne Konfiguration  →  config.json
+```
+
+Beim Öffnen einer CSV sagt die App das und bietet an, den Stand gleich als JSON
+zu sichern. Beim Datum werden `dd-MM-yyyy`, `dd.MM.yyyy`, `MM/dd/yyyy` und ISO
+`yyyy-MM-dd` erkannt.
+
+Der Grund für den Schnitt: Das alte Format kennt nur Teens und Kids mit acht
+Tagen. SOFA, Sola next, abweichende Dauer, eigene Vorlagen — nichts davon passt
+hinein. Ein Format, das beim Speichern stillschweigend Dinge verliert, ist
+schlimmer als eines, das es gar nicht erst anbietet.
+
+Jede JSON-Datei trägt vorn ihre `version`:
+
+```json
+{
+  "version": 1,
+  "vorlage": "sola",
+  "jahr": "2026"
+}
+```
+
+Daran hängt die Migration: Eine Datei ohne Angabe gilt als Fassung 1, eine aus
+einer *neueren* App wird nicht stillschweigend verstümmelt, sondern mit einem
+klaren Hinweis abgelehnt.
 
 ## Fotos und Videos einsortieren
 
@@ -317,6 +357,42 @@ Jede Kategorie lässt sich einzeln an- und abwählen:
 
 Echte Fotos werden nicht angetastet, und vor dem Entfernen steht jede einzelne
 Datei in der Liste.
+
+## Kameras
+
+Jede Kamera schreibt ihre Seriennummer in die Bilder. Daran hängen zwei Dinge,
+die im Alltag regelmäßig schiefgehen:
+
+* **Wem gehört das Bild?** Auf einer gemischten Karte liegen Bilder von
+  mehreren Leuten. Ist die Kamera einmal einer Person zugeordnet, steht im
+  Importfenster bei *Person* die Auswahl **automatisch — nach Kamera** bereit;
+  dann sortiert ein Lauf die ganze Karte auseinander. Bilder einer Kamera ohne
+  Zuordnung werden übersprungen und in der Vorschau aufgeführt — geraten wird
+  nicht.
+* **Geht die Uhr richtig?** Eine Kamera mit falsch gestellter Uhr schiebt ihre
+  Bilder in den falschen Tagesordner, und im Schnitt passen Foto und Video
+  nicht zusammen. Ein **Versatz in Minuten** je Kamera rückt das gerade — nur
+  für die Einsortierung, die Originaldateien bleiben unangetastet.
+
+Die Liste füllt sich von allein: Jede beim Vergleichen gesehene Kamera landet
+dort. Eine einmal getroffene Zuordnung überschreibt kein Import.
+
+### Was beim Import in die Dateien kommt
+
+Im selben Abschnitt steht, was nach dem Kopieren in die Dateien geschrieben
+wird — **ausschließlich in die Kopien im Zielordner, nie auf die Speicherkarte**:
+
+* **Urheber** (`Artist`, `XMP:Creator`, `IPTC:By-line`) und **Rechtehinweis**
+  (`Copyright`, `XMP:Rights`, `IPTC:CopyrightNotice`). Rutscht ein Bild später
+  aus seinem Ordner, ist immer noch erkennbar, von wem es ist.
+* **Stichwörter** (`Keywords`, `XMP:Subject`) — angehängt, nicht ersetzt.
+* **Ortsangaben entfernen.** Handys und viele Kameras schreiben die
+  GPS-Koordinaten mit ins Bild. Bei Aufnahmen von einer Freizeit mit
+  Minderjährigen gehört das nicht ins Netz — und heute passiert es nur, wenn
+  jemand daran denkt. Hier ist es ein Häkchen.
+
+Schlägt das Schreiben fehl, bleibt die Kopie trotzdem liegen: die Datei zu
+haben ist wichtiger als ihr Etikett. Das Protokoll hält beides fest.
 
 ## Lightroom-Vorgaben
 
@@ -428,7 +504,13 @@ npm run smoke      # Headless-Durchlauf durch die echte App (Linux, via xvfb-run
 npm run smoke:mac  # derselbe Durchlauf auf macOS/Windows, mit sichtbarem Fenster
 npm run dist:mac   # .dmg bauen (nur auf macOS)
 npm run dist:win   # .exe bauen (auf Windows; via wine auch anderswo)
+npm run exiftool   # beide ExifTool-Pakete holen (für den Bau über Plattformen hinweg)
 ```
+
+`exiftool-vendored.exe` ist auf Windows beschränkt und wird von npm auf anderen
+Rechnern übersprungen. Wer von macOS aus ein Windows-Paket baut, holt es mit
+`npm run exiftool` dazu — sonst bricht der Bau ab, statt still ein Paket ohne
+ExifTool auszuliefern.
 
 ### Ein Release herausgeben
 
@@ -478,6 +560,9 @@ Ansichten und prüft unter anderem:
 * das Einsortieren bringt Fotos und Videos in den Datumsbaum und schreibt ein
   Protokoll, die Duplikatsuche behält je Gruppe eine Datei, und das Aufräumen
   lässt echte Fotos liegen,
+* ExifTool kommt aus dem Paket und nicht vom Rechner,
+* jede Aufgabe hat einen Abbrechen-Knopf, der erst auftaucht, wenn etwas läuft,
+* Urheber, Stichwörter und das GPS-Häkchen überleben einen Neustart,
 * bei 1240, 900 und 620 px Fensterbreite scrollt die Seite nicht seitlich.
 
 Dabei entstehen die Screenshots in `docs/screenshots/`. Der Lauf endet mit
@@ -494,9 +579,12 @@ src/core/       Plattformunabhängige Logik, ohne Electron-Abhängigkeit
   createStructure.js  legt die berechnete Ordnerliste auf der Platte an
   sortieren.js    die vier Aufgaben: Fotos, Dokumente, Duplikate, Aufräumen
   sachgruppen.js  Stichwortlisten, nach denen Dokumente zugeordnet werden
-  einstellungen.js  gemerkte Ordner, Optionen und Sachgruppen
-  werkzeuge.js    findet exiftool und pdftotext, beides freiwillig
-  exif.js         ExifTool-Anbindung (nur Lesen der Metadaten)
+  einstellungen.js  gemerkte Ordner, Optionen, Sachgruppen und Kameras
+  kameras.js      Seriennummer -> Person und Uhrzeit-Versatz
+  metadaten.js    schreibt Urheber, Rechte und Stichwörter in die Kopien
+  mitgeliefert.js findet das mitgelieferte ExifTool (gepackt und in Entwicklung)
+  werkzeuge.js    Stand der Hilfsprogramme für die Oberfläche
+  exif.js         ExifTool-Anbindung (Lesen der Metadaten)
   devices.js      erkennt angesteckte Wechseldatenträger (Kamera/SD über DCIM)
   importPlan.js   ordnet Dateien anhand ihres Datums einem Zielschema zu
   importRun.js    sammelt Medien, vergleicht (FreeFileSync-Art), setzt um
@@ -509,7 +597,9 @@ src/main/       Electron-Hauptprozess: Fenster, Menü, Dialoge, IPC
 src/renderer/   Oberfläche (HTML/CSS/JS, ohne Node-Zugriff)
 scripts/smoke.js    Headless-Durchlauf, erzeugt zugleich die Screenshots
 scripts/logo.js     erzeugt die Programmsymbole aus der Logo-Geometrie
+scripts/after-pack.js   prüft ExifTool im Paket und signiert die macOS-App ad hoc
 resources/presets/  Die mitgelieferten Lightroom-Vorlagen
+resources/EXIFTOOL-LIZENZ.txt   Lizenzhinweis für das mitgelieferte ExifTool
 ```
 
 `vorlagen.js` ist bewusst rein funktional: Die Vorschau in der Oberfläche und
