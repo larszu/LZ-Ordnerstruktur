@@ -52,6 +52,25 @@ const brücke = {
   aufSortierFortschritt: (handler) => ipcRenderer.on('sortieren:fortschritt', (_e, d) => handler(d)),
   aufNeueKameras: (handler) => ipcRenderer.on('kameras:neu', (_e, d) => handler(d)),
 
+  // Ziele und Sichern im Hintergrund
+  fensterZeigen: (ansicht) => ipcRenderer.invoke('fenster:zeigen', ansicht),
+  zieleStand: () => ipcRenderer.invoke('ziele:stand'),
+  zielHinzufuegen: (vorgabe) => ipcRenderer.invoke('ziele:hinzufuegen', vorgabe),
+  zielAendern: (pfad, aenderungen) => ipcRenderer.invoke('ziele:aendern', { pfad, aenderungen }),
+  zielEntfernen: (pfad) => ipcRenderer.invoke('ziele:entfernen', pfad),
+  wacheSetzen: (aenderungen) => ipcRenderer.invoke('wache:setzen', aenderungen),
+  laufwerkeListe: () => ipcRenderer.invoke('laufwerke:liste'),
+  karteStand: (daten) => ipcRenderer.invoke('karte:stand', daten),
+  karteSichern: (daten) => ipcRenderer.invoke('karte:sichern', daten),
+  karteIgnorieren: (daten) => ipcRenderer.invoke('karte:ignorieren', daten),
+  karteOeffnen: (pfad) => ipcRenderer.invoke('karte:oeffnen', pfad),
+  auftraegeStand: () => ipcRenderer.invoke('auftraege:stand'),
+  auftragAbbrechen: (id) => ipcRenderer.invoke('auftraege:abbrechen', id),
+  auftraegeAufraeumen: () => ipcRenderer.invoke('auftraege:aufraeumen'),
+  aufAuftraege: (handler) => ipcRenderer.on('auftraege:stand', (_e, d) => handler(d)),
+  aufKarteFortschritt: (handler) => ipcRenderer.on('karte:fortschritt', (_e, d) => handler(d)),
+  aufAnsicht: (handler) => ipcRenderer.on('ansicht:wechseln', (_e, d) => handler(d)),
+
   // Importfenster
   importFensterOeffnen: (kontext) => ipcRenderer.invoke('import:fensterOeffnen', kontext),
   importKontext: () => ipcRenderer.invoke('import:kontext'),

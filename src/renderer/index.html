@@ -27,6 +27,7 @@
 
         <p class="nav-kicker">Einsortieren</p>
         <button type="button" class="nav-knopf" data-ansicht="import">Von Kamera oder SD-Karte</button>
+        <button type="button" class="nav-knopf" data-ansicht="ziele">Sichern &amp; Ziele</button>
         <button type="button" class="nav-knopf" data-ansicht="fotos">Fotos &amp; Videos</button>
         <button type="button" class="nav-knopf" data-ansicht="dokumente">Dokumente</button>
 
@@ -53,6 +54,10 @@
             <button type="button" class="kachel" data-ansicht="struktur">
               <span class="kachel-titel">Ordnerstruktur anlegen</span>
               <span class="kachel-text">Einen fertigen Ordnerbaum erzeugen — nach einer Vorlage, die du selbst anpassen kannst.</span>
+            </button>
+            <button type="button" class="kachel" data-ansicht="ziele">
+              <span class="kachel-titel">Sichern &amp; Ziele</span>
+              <span class="kachel-text">Karte auf zwei Platten sichern, im Hintergrund, geprüft.</span>
             </button>
             <button type="button" class="kachel" data-ansicht="import">
               <span class="kachel-titel">Von Kamera einlesen</span>
@@ -228,6 +233,60 @@
             Ziel ist entweder die oben angelegte Ordnerstruktur oder ein reiner Datumsbaum
             (<code>JJJJ/JJJJMM/JJJJMMDD</code>) — das lässt sich im Importfenster umstellen.
           </p>
+        </section>
+
+        <!-- ------------------------------------------------------------ -->
+        <section class="ansicht" id="ansicht-ziele">
+          <h2 class="titel">Sichern &amp; Ziele</h2>
+          <p class="einleitung">
+            Am Drehtag gilt: zwei Kopien, bevor die Karte gelöscht wird. Hier stehen die Ziele mit
+            Namen und Rolle — Arbeitslaufwerk, Sicherung, Archiv. Eine gesteckte Karte wird auf
+            alle angeschlossenen Ziele kopiert und danach Datei für Datei nachgeprüft. Fertig
+            gemeldet wird erst, wenn jedes Ziel durch ist.
+          </p>
+
+          <div class="kopflinie"><span class="kicker">Ziele</span></div>
+          <p class="hinweis" id="zieleHinweis"></p>
+          <div class="editorliste" id="zieleListe"></div>
+          <div class="zeile zeile-umbruch">
+            <button type="button" id="btnZielOrdnerWaehlen" class="knopf">Ordner als Ziel wählen …</button>
+            <button type="button" id="btnLaufwerkeAktualisieren" class="knopf knopf-still">Laufwerke aktualisieren</button>
+          </div>
+
+          <div class="kopflinie"><span class="kicker">Außerdem angeschlossen</span></div>
+          <div class="geraete" id="laufwerkeListe" role="group" aria-label="Angeschlossene Laufwerke"></div>
+
+          <div class="kopflinie"><span class="kicker">Gesteckte Karten</span></div>
+          <div class="geraete" id="kartenListe" role="group" aria-label="Gesteckte Karten"></div>
+
+          <div class="kopflinie"><span class="kicker">Aufträge</span></div>
+          <div class="auftraege" id="auftragsListe"></div>
+          <div class="zeile zeile-umbruch">
+            <button type="button" id="btnAuftraegeAufraeumen" class="knopf knopf-still knopf-klein">Erledigte ausblenden</button>
+          </div>
+
+          <div class="kopflinie"><span class="kicker">Menüleiste</span></div>
+          <p class="hinweis">
+            Das Symbol neben der Uhr zeigt den Stand und meldet eine gesteckte Karte, auch wenn
+            kein Fenster offen ist. Das Kopieren läuft dort weiter.
+          </p>
+          <label class="schalter">
+            <input type="checkbox" id="wacheAktiv" />
+            <span><strong>Symbol in der Menüleiste zeigen und beim Einstecken fragen.</strong></span>
+          </label>
+          <label class="schalter">
+            <input type="checkbox" id="wacheNurKameras" />
+            <span>Nur Karten mit <code>DCIM</code>-Ordner melden <em>(nicht jeden USB-Stick)</em></span>
+          </label>
+          <label class="schalter">
+            <input type="checkbox" id="wacheSofort" />
+            <span><strong>Ohne Rückfrage sofort sichern.</strong>
+              <em>Karte stecken, Rest läuft allein — nur sinnvoll, wenn die Ziele immer dieselben sind.</em></span>
+          </label>
+          <label class="feld feld-tage">
+            <span>Nachschau (Sek.)</span>
+            <input type="number" id="wacheTakt" min="2" max="60" step="1" />
+          </label>
         </section>
 
         <!-- ------------------------------------------------------------ -->

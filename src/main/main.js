@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow, dialog, ipcMain, shell, Menu } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, shell, Menu, Notification } = require('electron');
 const fs = require('fs');
 const path = require('path');
 
@@ -12,10 +12,14 @@ const einstellungen = require('../core/einstellungen');
 const sortieren = require('../core/sortieren');
 const werkzeuge = require('../core/werkzeuge');
 const exif = require('../core/exif');
-const { vergleicheImport, runImport, VERGLEICH_METHODEN } = require('../core/importRun');
+const { vergleicheImport, runImport, scanImport, pruefeZiel, sichereAufZiel, VERGLEICH_METHODEN } = require('../core/importRun');
 const { schemaListe, PERSON_AUTOMATISCH } = require('../core/importPlan');
 const kameras = require('../core/kameras');
-const { listRemovable } = require('../core/devices');
+const ziele = require('../core/ziele');
+const { listRemovable, listVolumes, volumeStand } = require('../core/devices');
+const { Warteschlange } = require('../core/auftraege');
+const { Kartenwache } = require('./wache');
+const { Menueleiste } = require('./tray');
 const { installPresets, lightroomPfade } = require('../core/lightroom');
 const presetStore = require('../core/presetStore');
 const { SOLA_TAGE, MIN_TAGE, MAX_TAGE } = require('../core/dates');
@@ -85,6 +89,20 @@ function createWindow() {
   });
 }
 
+/** Holt das Hauptfenster nach vorn — oder legt es neu an, wenn es zu war. */
+function zeigeFenster(ansicht = '') {
+  if (!fenster) createWindow();
+  if (fenster.isMinimized()) fenster.restore();
+  fenster.show();
+  fenster.focus();
+  if (ansicht) {
+    // Erst wenn die Oberfläche steht, hat der Wechsel einen Platz zum Landen.
+    const senden = () => fenster && fenster.webContents.send('ansicht:wechseln', ansicht);
+    if (fenster.webContents.isLoading()) fenster.webContents.once('did-finish-load', senden);
+    else senden();
+  }
+}
+
 function buildMenu() {
   /** @type {Electron.MenuItemConstructorOptions[]} */
   const template = [
@@ -107,6 +125,11 @@ function buildMenu() {
           label: 'Fotos importieren …',
           accelerator: 'CmdOrCtrl+I',
           click: () => fenster && fenster.webContents.send('menu:import'),
+        },
+        {
+          label: 'Karte sichern …',
+          accelerator: 'CmdOrCtrl+B',
+          click: () => zeigeFenster('ziele'),
         },
         { type: 'separator' },
         IST_MAC ? { role: 'close' } : { role: 'quit' },
@@ -135,13 +158,37 @@ function buildMenu() {
 app.whenReady().then(() => {
   buildMenu();
   createWindow();
+  starteMenueleiste();
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 });
 
 app.on('window-all-closed', () => {
-  if (!IST_MAC) app.quit();
+  // Solange das Symbol in der Menüleiste steht, läuft die App weiter — sonst
+  // würde ein geschlossenes Fenster einen laufenden Sicherungsauftrag töten.
+  if (!IST_MAC && !menueleiste) app.quit();
+});
+
+// Ein laufender Auftrag darf nicht stillschweigend abbrechen.
+app.on('before-quit', (e) => {
+  if (beendenErlaubt) return;
+  const stand = warteschlange.stand();
+  if (stand.aktiv.length === 0) return;
+  e.preventDefault();
+  const antwort = dialog.showMessageBoxSync({
+    type: 'warning',
+    buttons: ['Weiter sichern', 'Abbrechen und beenden'],
+    defaultId: 0,
+    cancelId: 0,
+    message: 'Es wird noch gesichert.',
+    detail: `${stand.aktiv.map((a) => a.kurz).join('\n')}\n\nWird jetzt beendet, bleibt die Karte unvollständig gesichert.`,
+  });
+  if (antwort === 1) {
+    warteschlange.abbrechen();
+    beendenErlaubt = true;
+    app.quit();
+  }
 });
 
 // ---------------------------------------------------------------------------
@@ -584,4 +631,375 @@ ipcMain.handle('import:kopieren', async (_e, { zielBasis, verschieben, methode, 
   } catch (err) {
     return { ok: false, fehler: String(err.message || err) };
   }
+});
+
+// ---------------------------------------------------------------------------
+// Sichern im Hintergrund: Menüleiste, Kartenwache, Warteschlange
+//
+// Eine gesteckte Karte soll von allein auffallen, auf alle eingerichteten Ziele
+// kopiert und erst dann freigegeben werden, wenn jedes Ziel nachgeprüft ist.
+// Das Fenster darf dabei zu sein — gearbeitet wird hier im Hauptprozess.
+// ---------------------------------------------------------------------------
+
+/** @type {Menueleiste|null} */
+let menueleiste = null;
+/** @type {Kartenwache|null} */
+let kartenwache = null;
+/** @type {Map<string, BrowserWindow>} */
+const kartenfenster = new Map();
+let beendenErlaubt = false;
+
+const wacheEinstellungen = () => einstellungen.lade(userDir()).wache;
+
+/** Ziele mit ihrem Stand: angeschlossen, freier Platz. */
+function zieleMitStand() {
+  return ziele.mitStand(einstellungen.lade(userDir()).ziele, volumeStand);
+}
+
+/** Gesteckte Karten, die die Wache melden würde. */
+function gesteckteKarten() {
+  const nurKameras = wacheEinstellungen().nurKameras;
+  return listRemovable().filter((g) => !nurKameras || g.kamera);
+}
+
+/** Schickt den Stand der Warteschlange an alle offenen Fenster. */
+function sendeStand(stand) {
+  for (const w of BrowserWindow.getAllWindows()) {
+    if (!w.isDestroyed()) w.webContents.send('auftraege:stand', stand);
+  }
+  if (menueleiste) menueleiste.zeichne();
+}
+
+/** Kurze Systemmeldung — sie ist der Ersatz für das offene Fortschrittsfenster. */
+function benachrichtige(titel, text) {
+  try {
+    if (Notification.isSupported()) new Notification({ title: titel, body: text }).show();
+  } catch (_) {
+    // Ohne Benachrichtigungsrecht bleibt der Stand im Menü sichtbar.
+  }
+}
+
+const warteschlange = new Warteschlange({
+  // Ein Ziel je Aufruf: kopieren und danach gegen die Karte nachprüfen.
+  arbeite: (auftrag, ziel, { melde, sollAbbrechen }) =>
+    sichereAufZiel({
+      plan: auftrag.plan,
+      zielBasis: ziel.pfad,
+      methode: auftrag.methode,
+      metadatenWunsch: auftrag.metadatenWunsch,
+      melde,
+      sollAbbrechen,
+    }),
+  melde: (ereignis) => {
+    sendeStand(ereignis.stand);
+    if (ereignis.art === 'auftragFertig') {
+      const auftrag = ereignis.stand.alle.find((a) => a.id === ereignis.auftragId);
+      if (auftrag) benachrichtige(auftrag.formatieren ? 'Karte gesichert' : 'Sicherung nicht vollständig', auftrag.satz);
+    }
+  },
+});
+
+function starteMenueleiste() {
+  const wache = wacheEinstellungen();
+  if (!wache.aktiv) return;
+  if (!menueleiste) {
+    try {
+      menueleiste = new Menueleiste({
+        stand: () => warteschlange.stand(),
+        karten: gesteckteKarten,
+        ziele: zieleMitStand,
+        sichern: (pfad) => oeffneKartenfenster(pfad),
+        abbrechen: (id) => warteschlange.abbrechen(id),
+        fenster: () => zeigeFenster(),
+        importFenster: () => oeffneImportFenster(),
+        ansicht: (name) => zeigeFenster(name),
+        wacheAktiv: () => wacheEinstellungen().aktiv,
+        setzeWache: (aktiv) => {
+          einstellungen.speichere(userDir(), { wache: { ...wacheEinstellungen(), aktiv } });
+          if (aktiv) {
+            starteMenueleiste();
+            return;
+          }
+          stoppeMenueleiste();
+          // Ohne Symbol gibt es keinen Weg zurück über die Menüleiste —
+          // also sagen, wo der Schalter sonst noch steht.
+          dialog.showMessageBox({
+            type: 'info',
+            message: 'Das Symbol in der Menüleiste ist aus.',
+            detail: 'Gesteckte Karten werden nicht mehr gemeldet. Zurückholen lässt sich das '
+              + 'im Fenster unter „Sichern & Ziele".',
+            buttons: ['Gut'],
+          });
+        },
+        beenden: () => {
+          beendenErlaubt = warteschlange.stand().aktiv.length === 0;
+          app.quit();
+        },
+      });
+    } catch (err) {
+      // Ohne Benachrichtigungsfeld (manche Linux-Oberflächen, Testläufe ohne
+      // Sitzung) läuft die App weiter — nur eben ohne Symbol.
+      console.warn(`Menüleiste nicht verfügbar: ${err.message}`);
+      menueleiste = null;
+    }
+  }
+  if (!kartenwache) {
+    kartenwache = new Kartenwache({
+      liste: listRemovable,
+      takt: wache.takt,
+      beiNeu: (geraet) => karteGesteckt(geraet),
+      beiWeg: (pfad) => {
+        // Abgezogene Karte: das Fenster dazu hat sich erledigt.
+        const w = kartenfenster.get(pfad);
+        if (w && !w.isDestroyed()) w.close();
+        if (menueleiste) menueleiste.zeichne();
+      },
+    });
+  }
+  kartenwache.setzeTakt(wache.takt);
+  kartenwache.starte();
+}
+
+function stoppeMenueleiste() {
+  if (kartenwache) kartenwache.stoppe();
+  if (menueleiste) menueleiste.zerstoere();
+  menueleiste = null;
+}
+
+/** Eine Karte ist gesteckt worden. */
+function karteGesteckt(geraet) {
+  const wache = wacheEinstellungen();
+  if (!wache.aktiv) return;
+  if (wache.nurKameras && !geraet.kamera) return;
+  if ((wache.ignoriert || []).includes(geraet.pfad)) return;
+  if (menueleiste) menueleiste.zeichne();
+  if (wache.sofort) {
+    sichereKarte({ pfad: geraet.pfad }).then((r) => {
+      if (!r.ok) benachrichtige('Karte nicht gesichert', r.fehler);
+    });
+    return;
+  }
+  oeffneKartenfenster(geraet.pfad);
+}
+
+/**
+ * Das kleine Fenster, das beim Einstecken aufgeht: was ist auf der Karte, auf
+ * welchen Zielen fehlt sie noch, und ein Knopf zum Sichern.
+ */
+function oeffneKartenfenster(pfad) {
+  const schon = kartenfenster.get(pfad);
+  if (schon && !schon.isDestroyed()) {
+    schon.show();
+    schon.focus();
+    return;
+  }
+  const w = new BrowserWindow({
+    width: 560,
+    height: 640,
+    minWidth: 460,
+    minHeight: 440,
+    title: 'Karte gesteckt',
+    backgroundColor: '#f6f5f0',
+    resizable: true,
+    minimizable: false,
+    fullscreenable: false,
+    titleBarStyle: IST_MAC ? 'hiddenInset' : 'default',
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
+  });
+  w.loadFile(path.join(__dirname, '..', 'renderer', 'karte.html'), { query: { pfad } });
+  w.on('closed', () => kartenfenster.delete(pfad));
+  kartenfenster.set(pfad, w);
+}
+
+/** Baut zu einer Karte den Plan und sagt, was auf welchem Ziel noch fehlt. */
+async function karteStand(pfad, { unterordner = '', umbenennen = false } = {}) {
+  const gespeichert = einstellungen.lade(userDir());
+  const geraet = listRemovable().find((g) => g.pfad === pfad);
+  const scan = await scanImport({
+    quelle: pfad,
+    schema: 'datum',
+    ktx: { umbenennen, unterordner },
+    melde: (text) => {
+      const w = kartenfenster.get(pfad);
+      if (w && !w.isDestroyed()) w.webContents.send('karte:fortschritt', { pfad, text });
+    },
+  });
+  const liste = ziele.mitStand(gespeichert.ziele, volumeStand);
+  const aufstellung = ziele.pruefeAufstellung(liste);
+  const stand = [];
+  for (const z of liste) {
+    if (!z.angeschlossen) {
+      stand.push({ ...z, gesamt: scan.plan.length, fehlend: null, vorhanden: 0 });
+      continue;
+    }
+    // Vorprüfung nach Datum und Größe — schnell genug für den Moment des
+    // Einsteckens. Nachgeprüft wird nach dem Kopieren über die Prüfsumme.
+    const p = await pruefeZiel({ plan: scan.plan, zielBasis: z.pfad, methode: 'zeitgroesse' });
+    stand.push({ ...z, gesamt: p.gesamt, fehlend: p.fehlend, vorhanden: p.vorhanden });
+  }
+  return {
+    ok: true,
+    pfad,
+    name: geraet ? geraet.name : path.basename(pfad),
+    kamera: Boolean(geraet && geraet.kamera),
+    gefunden: scan.gefunden,
+    geplant: scan.plan.length,
+    uebersprungen: scan.uebersprungen.length,
+    warnungen: scan.warnungen,
+    hinweis: aufstellung.hinweis,
+    ziele: stand,
+    laufwerke: listVolumes(),
+    sicherung: gespeichert.sicherung,
+  };
+}
+
+/** Stellt die Karte als Hintergrundauftrag ein. */
+async function sichereKarte({ pfad, unterordner = '', umbenennen = false, methode = 'zeitgroesse' }) {
+  const gespeichert = einstellungen.lade(userDir());
+  const liste = ziele.mitStand(gespeichert.ziele, volumeStand);
+  const bereit = ziele.einsatzbereit(liste);
+  if (bereit.length === 0) {
+    return { ok: false, fehler: ziele.pruefeAufstellung(liste).hinweis };
+  }
+  const scan = await scanImport({ quelle: pfad, schema: 'datum', ktx: { umbenennen, unterordner } });
+  if (scan.plan.length === 0) {
+    return { ok: false, fehler: 'Auf der Karte ist nichts zu sichern.' };
+  }
+  einstellungen.speichere(userDir(), { sicherung: { ...gespeichert.sicherung, unterordner, umbenennen, methode } });
+  const geraet = listRemovable().find((g) => g.pfad === pfad);
+  const auftrag = warteschlange.stelleEin({
+    quelle: pfad,
+    quelleName: geraet ? geraet.name : path.basename(pfad),
+    ziele: bereit.map((z) => ({ pfad: z.pfad, name: z.name, rolle: z.rolle })),
+    plan: scan.plan,
+    methode,
+    schema: 'datum',
+    notiz: unterordner,
+  });
+  return { ok: true, auftrag, zieleAnzahl: bereit.length };
+}
+
+// --- IPC: Ziele -------------------------------------------------------------
+
+ipcMain.handle('ziele:stand', () => {
+  const liste = zieleMitStand();
+  return {
+    ziele: liste,
+    rollen: ziele.ROLLEN,
+    laufwerke: listVolumes(),
+    karten: gesteckteKarten(),
+    aufstellung: ziele.pruefeAufstellung(liste),
+    wache: wacheEinstellungen(),
+    sicherung: einstellungen.lade(userDir()).sicherung,
+    menueleiste: Boolean(menueleiste),
+  };
+});
+
+ipcMain.handle('ziele:hinzufuegen', async (_e, vorgabe) => {
+  let pfad = vorgabe && vorgabe.pfad;
+  if (!pfad) {
+    const ergebnis = await dialog.showOpenDialog(fenster, {
+      title: 'Laufwerk oder Ordner als Ziel wählen',
+      message: 'Laufwerk oder Ordner als Ziel wählen',
+      properties: ['openDirectory', 'createDirectory'],
+      buttonLabel: 'Als Ziel übernehmen',
+    });
+    if (ergebnis.canceled || ergebnis.filePaths.length === 0) return { ok: false, abgebrochen: true };
+    pfad = ergebnis.filePaths[0];
+  }
+  const gespeichert = einstellungen.lade(userDir());
+  const r = ziele.ergaenzeZiel(gespeichert.ziele, { pfad, name: vorgabe && vorgabe.name, rolle: vorgabe && vorgabe.rolle });
+  if (r.fehler) return { ok: false, fehler: r.fehler };
+  einstellungen.speichere(userDir(), { ziele: r.ziele });
+  if (menueleiste) menueleiste.zeichne();
+  return { ok: true, ziele: zieleMitStand(), neu: r.neu };
+});
+
+ipcMain.handle('ziele:aendern', (_e, { pfad, aenderungen }) => {
+  const gespeichert = einstellungen.lade(userDir());
+  const liste = ziele.setzeZiel(gespeichert.ziele, pfad, aenderungen || {});
+  einstellungen.speichere(userDir(), { ziele: liste });
+  if (menueleiste) menueleiste.zeichne();
+  return { ok: true, ziele: zieleMitStand() };
+});
+
+ipcMain.handle('ziele:entfernen', (_e, pfad) => {
+  const gespeichert = einstellungen.lade(userDir());
+  einstellungen.speichere(userDir(), { ziele: ziele.entferneZiel(gespeichert.ziele, pfad) });
+  if (menueleiste) menueleiste.zeichne();
+  return { ok: true, ziele: zieleMitStand() };
+});
+
+ipcMain.handle('wache:setzen', (_e, aenderungen) => {
+  const wache = { ...wacheEinstellungen(), ...(aenderungen || {}) };
+  einstellungen.speichere(userDir(), { wache });
+  if (wache.aktiv) starteMenueleiste();
+  else stoppeMenueleiste();
+  if (menueleiste) menueleiste.zeichne();
+  return { ok: true, wache: wacheEinstellungen(), menueleiste: Boolean(menueleiste) };
+});
+
+// --- IPC: Karte und Aufträge -----------------------------------------------
+
+ipcMain.handle('karte:stand', async (_e, { pfad, unterordner, umbenennen }) => {
+  if (!pfad) return { ok: false, fehler: 'Keine Karte angegeben.' };
+  try {
+    return await karteStand(pfad, { unterordner, umbenennen });
+  } catch (err) {
+    return { ok: false, fehler: String(err.message || err) };
+  }
+});
+
+ipcMain.handle('karte:sichern', async (_e, daten) => {
+  try {
+    const r = await sichereKarte(daten || {});
+    if (r.ok) {
+      const w = kartenfenster.get(daten.pfad);
+      if (w && !w.isDestroyed()) w.close();
+    }
+    return r;
+  } catch (err) {
+    return { ok: false, fehler: String(err.message || err) };
+  }
+});
+
+ipcMain.handle('karte:ignorieren', (_e, { pfad, dauerhaft }) => {
+  if (dauerhaft && pfad) {
+    const wache = wacheEinstellungen();
+    einstellungen.speichere(userDir(), {
+      wache: { ...wache, ignoriert: [...new Set([...(wache.ignoriert || []), pfad])] },
+    });
+  }
+  const w = kartenfenster.get(pfad);
+  if (w && !w.isDestroyed()) w.close();
+  return { ok: true };
+});
+
+ipcMain.handle('karte:oeffnen', (_e, pfad) => {
+  oeffneKartenfenster(pfad);
+  return { ok: true };
+});
+
+ipcMain.handle('auftraege:stand', () => warteschlange.stand());
+
+ipcMain.handle('auftraege:abbrechen', (_e, id) => {
+  warteschlange.abbrechen(id);
+  return warteschlange.stand();
+});
+
+ipcMain.handle('auftraege:aufraeumen', () => {
+  warteschlange.aufraeumen();
+  return warteschlange.stand();
+});
+
+ipcMain.handle('laufwerke:liste', () => listVolumes());
+
+ipcMain.handle('fenster:zeigen', (_e, ansicht) => {
+  zeigeFenster(typeof ansicht === 'string' ? ansicht : '');
+  return { ok: true };
 });

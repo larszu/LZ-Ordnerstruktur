@@ -1,8 +1,8 @@
 {
   "name": "lz-ordnerstruktur",
   "productName": "LZ Ordnerstruktur",
-  "version": "2.0.0",
-  "description": "Ordnerstrukturen nach frei konfigurierbaren Vorlagen anlegen, Fotos und Videos von Kamera oder SD-Karte importieren, vorhandene Dateien nach Datum und Inhalt einsortieren, Duplikate finden und aufräumen — privat und fürs Sola, für macOS und Windows.",
+  "version": "2.1.0",
+  "description": "Ordnerstrukturen nach frei konfigurierbaren Vorlagen anlegen, Fotos und Videos von Kamera oder SD-Karte importieren, Speicherkarten im Hintergrund auf mehrere Ziele sichern und nachprüfen, vorhandene Dateien nach Datum und Inhalt einsortieren, Duplikate finden und aufräumen — privat und fürs Sola, für macOS und Windows.",
   "keywords": [
     "file-organizer",
     "folder-structure",
@@ -20,7 +20,11 @@
     "ordnerstruktur",
     "foto-import",
     "sd-karte",
-    "dateien-sortieren"
+    "dateien-sortieren",
+    "backup",
+    "menubar",
+    "tray",
+    "card-offload"
   ],
   "author": "Lars Zumpe Medienproduktion",
   "repository": {

@@ -560,6 +560,16 @@ app.whenReady().then(async () => {
     await screenshot(win, '11-kameras.png');
 
     console.log('\n· Doppelte Dateien');
+    // Endgültig löschen statt in den Papierkorb: Der Arbeitsordner liegt unter
+    // /tmp, und `gio` lehnt den Papierkorb auf solchen Einhängepunkten ab
+    // („Trashing on system internal mounts is not supported"). Geprüft werden
+    // soll hier die Aufräumlogik, nicht der Papierkorb des Laufwerks.
+    await imFenster(`(async () => {
+      const box = document.getElementById('optPapierkorb');
+      box.checked = false;
+      box.dispatchEvent(new Event('change', { bubbles: true }));
+      await new Promise((r) => setTimeout(r, 500));
+    })()`);
     const doppelt = path.join(arbeitsordner, 'doppelt');
     fs.mkdirSync(path.join(doppelt, 'unten'), { recursive: true });
     fs.writeFileSync(path.join(doppelt, 'brief.txt'), 'derselbe Inhalt');
@@ -594,6 +604,131 @@ app.whenReady().then(async () => {
     await imFenster(aufgabeLaufen('aufraeumen', 'ausfuehren'));
     pruefe(fs.existsSync(path.join(muell, 'urlaub.jpg')), 'das echte Foto bleibt liegen');
     pruefe(!fs.existsSync(path.join(muell, 'folder.jpg')), 'das Album-Cover ist weg');
+
+
+    // ---------------------------------------------------------------------
+    console.log('\n· Sichern auf zwei Ziele (Hintergrundauftrag)');
+    const karte = path.join(arbeitsordner, 'drehtag-karte');
+    fs.mkdirSync(path.join(karte, 'DCIM'), { recursive: true });
+    for (let i = 0; i < 5; i += 1) {
+      fs.writeFileSync(path.join(karte, 'DCIM', `20261022_1200${String(i).padStart(2, '0')}.jpg`), `Aufnahme ${i}`);
+    }
+    const arbeitsLaufwerk = path.join(arbeitsordner, 'T7-Shield');
+    const archivLaufwerk = path.join(arbeitsordner, 'Archiv');
+    const abgezogen = path.join(arbeitsordner, 'nicht-angeschlossen');
+    fs.mkdirSync(arbeitsLaufwerk, { recursive: true });
+    fs.mkdirSync(archivLaufwerk, { recursive: true });
+
+    await geheZu('ziele');
+    const zieleStand = await imFenster(`(async () => {
+      await lz.zielHinzufuegen({ pfad: ${JSON.stringify(arbeitsLaufwerk)}, name: 'T7 Shield', rolle: 'arbeit' });
+      await lz.zielHinzufuegen({ pfad: ${JSON.stringify(archivLaufwerk)}, name: 'Archiv', rolle: 'archiv' });
+      await lz.zielHinzufuegen({ pfad: ${JSON.stringify(abgezogen)}, name: 'Bandarchiv', rolle: 'archiv' });
+      await ladeZiele();
+      await new Promise((r) => setTimeout(r, 200));
+      return {
+        zeilen: document.querySelectorAll('#zieleListe .zielkarte').length,
+        hinweis: document.getElementById('zieleHinweis').textContent,
+        rollen: [...document.querySelectorAll('#zieleListe select')].map((s) => s.value),
+        bereit: zustand.ziele.filter((z) => z.angeschlossen).length,
+      };
+    })()`);
+    pruefe(zieleStand.zeilen === 3, 'alle drei Ziele stehen in der Liste', String(zieleStand.zeilen));
+    pruefe(zieleStand.rollen.join(', ') === 'arbeit, archiv, archiv', 'die Rollen stehen am Ziel', zieleStand.rollen.join(', '));
+    pruefe(zieleStand.bereit === 2, 'ein nicht angeschlossenes Ziel wird als solches erkannt', String(zieleStand.bereit));
+    pruefe(/2 Ziele bereit/.test(zieleStand.hinweis), 'der Hinweis nennt die einsatzbereiten Ziele', zieleStand.hinweis);
+    await screenshot(win, '12-ziele.png');
+
+    // Das Fenster, das beim Einstecken aufgeht — hier von Hand geöffnet.
+    await imFenster(`lz.karteOeffnen(${JSON.stringify(karte)})`);
+    await warten(1500);
+    const karteWin = BrowserWindow.getAllWindows().find((w) => w.webContents.getURL().includes('karte.html'));
+    pruefe(Boolean(karteWin), 'das Kartenfenster öffnet sich als eigenes Fenster');
+
+    if (karteWin) {
+      karteWin.webContents.on('console-message', (e) => {
+        if (e.level === 'error' || e.level === 3) {
+          console.error(`  FEHL Kartenfenster-Fehler: ${e.message}`);
+          fehler.push('Kartenfenster-Fehler');
+        }
+      });
+      const imKarte = (js) => karteWin.webContents.executeJavaScript(js, true);
+      // Auf die erste Prüfung warten, die beim Öffnen von allein läuft.
+      for (let i = 0; i < 40; i += 1) {
+        const fertig = await imKarte("!document.getElementById('btnSichern').disabled");
+        if (fertig) break;
+        await warten(250);
+      }
+      const vorher = await imKarte(`({
+        satz: document.getElementById('satz').textContent,
+        ziele: [...document.querySelectorAll('#zielliste .zielzeile')].map((li) => [
+          li.querySelector('.zielzeile-name').textContent,
+          li.querySelector('.zielzeile-stand').textContent,
+        ].join(' — ')),
+        knopf: document.getElementById('btnSichern').textContent,
+      })`);
+      pruefe(/5 von 5/.test(vorher.satz), 'das Kartenfenster zählt, was noch fehlt', vorher.satz);
+      pruefe(/nicht formatieren/i.test(vorher.satz), 'und sagt ausdrücklich: nicht formatieren', vorher.satz);
+      pruefe(/2 Ziele/.test(vorher.knopf), 'der Knopf nennt die Zahl der Ziele', vorher.knopf);
+      pruefe(
+        vorher.ziele.some((z) => /Bandarchiv .*nicht angeschlossen/.test(z)),
+        'das fehlende Ziel steht als nicht angeschlossen da',
+        vorher.ziele.join(' | '),
+      );
+      await screenshot(karteWin, '13-karte-gesteckt.png');
+
+      await imKarte("document.getElementById('btnSichern').click()");
+      // Der Auftrag läuft im Hauptprozess weiter — das Fenster darf dabei zugehen.
+      await warten(600);
+      const zu = !BrowserWindow.getAllWindows().some((w) => w.webContents.getURL().includes('karte.html'));
+      pruefe(zu, 'nach dem Start schließt das Kartenfenster und der Auftrag läuft weiter');
+    }
+
+    const auftrag = await imFenster(`(async () => {
+      for (let i = 0; i < 120; i += 1) {
+        const stand = await lz.auftraegeStand();
+        const a = stand.alle[0];
+        if (a && (a.status === 'fertig' || a.status === 'fehler' || a.status === 'abgebrochen')) return a;
+        await new Promise((r) => setTimeout(r, 250));
+      }
+      return null;
+    })()`);
+    pruefe(Boolean(auftrag), 'der Hintergrundauftrag kommt zum Ende');
+    if (auftrag) {
+      pruefe(auftrag.status === 'fertig', 'er meldet sich fertig', `${auftrag.status} — ${auftrag.fehlerText || ''}`);
+      pruefe(auftrag.formatieren === true, 'erst jetzt darf die Karte formatiert werden', auftrag.satz);
+      pruefe(/kann formatiert werden/.test(auftrag.satz), 'der Satz sagt es im Klartext', auftrag.satz);
+      pruefe(
+        auftrag.ziele.length === 2 && auftrag.ziele.every((z) => z.status === 'fertig' && z.geprueft === 5),
+        'jedes angeschlossene Ziel ist einzeln nachgeprüft',
+        auftrag.ziele.map((z) => `${z.name}:${z.status}/${z.geprueft}`).join(', '),
+      );
+    }
+    for (const basis of [arbeitsLaufwerk, archivLaufwerk]) {
+      const tagesordner = path.join(basis, '2026', '202610', '20261022');
+      pruefe(
+        fs.existsSync(tagesordner) && fs.readdirSync(tagesordner).length === 5,
+        `alle fünf Aufnahmen liegen auf ${path.basename(basis)}`,
+        fs.existsSync(tagesordner) ? String(fs.readdirSync(tagesordner).length) : 'Ordner fehlt',
+      );
+    }
+    pruefe(
+      fs.readdirSync(path.join(karte, 'DCIM')).length === 5,
+      'die Karte bleibt unangetastet — kopiert, nicht verschoben',
+    );
+    pruefe(!fs.existsSync(abgezogen), 'ein nicht angeschlossenes Ziel wird nicht angelegt');
+
+    const nachher = await imFenster(`(async () => {
+      await ladeZiele();
+      await new Promise((r) => setTimeout(r, 200));
+      return {
+        auftraege: document.querySelectorAll('#auftragsListe .auftrag').length,
+        satz: document.querySelector('#auftragsListe .satz').textContent,
+      };
+    })()`);
+    pruefe(nachher.auftraege === 1, 'der Auftrag steht in der Liste', String(nachher.auftraege));
+    pruefe(/kann formatiert werden/.test(nachher.satz), 'die Ansicht zeigt denselben Satz', nachher.satz);
+    await screenshot(win, '14-auftrag-fertig.png', '#auftragsListe');
 
     console.log('\n· Layout');
     for (const [breite, hoehe, name] of [[1240, 920, null], [900, 900, null], [620, 900, '05-schmal.png']]) {

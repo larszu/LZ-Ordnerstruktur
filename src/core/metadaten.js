@@ -30,8 +30,9 @@ const BLOCK = 200;
  * @param {{urheber?: string, rechte?: string, stichworte?: string[], gpsEntfernen?: boolean}} wunsch
  * @returns {string[]} leer, wenn nichts zu tun ist
  */
-function argumenteFuer(wunsch = {}) {
+function argumenteFuer(wunsch) {
   const args = [];
+  if (!wunsch) return args;
   const urheber = String(wunsch.urheber || '').trim();
   const rechte = String(wunsch.rechte || '').trim();
   const stichworte = (wunsch.stichworte || []).map((w) => String(w || '').trim()).filter(Boolean);
