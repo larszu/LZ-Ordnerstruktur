@@ -58,6 +58,10 @@ async function init() {
   zustand.einstellungen = info.einstellungen || {};
   zustand.zielBasis = info.zielordner || '';
 
+  await themaStarten(zustand.einstellungen.thema, (wahl) => {
+    zustand.einstellungen.thema = wahl;
+  });
+
   $('werkzeugHinweis').innerHTML = info.exiftool
     ? (info.exiftoolQuelle === 'mitgeliefert'
         ? 'ExifTool ist mitgeliefert ✓ — das Aufnahmedatum kommt aus den Metadaten.'

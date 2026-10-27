@@ -105,7 +105,13 @@ function entferneZiel(ziele, pfad) {
 function mitStand(ziele, stand) {
   return normalisiereZiele(ziele).map((z) => {
     const s = stand ? stand(z.pfad) : { vorhanden: false, frei: null, gesamt: null };
-    return { ...z, angeschlossen: Boolean(s.vorhanden), frei: s.frei, gesamt: s.gesamt };
+    return {
+      ...z,
+      rolleLabel: rolleLabel(z.rolle),
+      angeschlossen: Boolean(s.vorhanden),
+      frei: s.frei,
+      gesamt: s.gesamt,
+    };
   });
 }
 

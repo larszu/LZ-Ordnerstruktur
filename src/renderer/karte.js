@@ -146,6 +146,7 @@ async function sichern() {
 }
 
 async function init() {
+  await themaStarten();
   $('btnSichern').addEventListener('click', sichern);
   $('btnPruefen').addEventListener('click', pruefen);
   $('btnImport').addEventListener('click', () => lz.importFensterOeffnen(null));

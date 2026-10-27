@@ -194,7 +194,36 @@ app.whenReady().then(async () => {
       await warten(250);
     };
 
+    console.log('\n· Darstellung');
+    // Headless Chrome meldet immer „dunkel". Die Aufnahmen für die README
+    // sollen hell sein, also wird hier über den Schalter der App umgestellt —
+    // und dabei gleich geprüft, dass er wirkt.
+    const dunkelZuerst = await imFenster("document.documentElement.dataset.theme || 'auto'");
+    const nachHell = await imFenster(`(async () => {
+      document.querySelector('.themen button[data-thema="hell"]').click();
+      await new Promise((r) => setTimeout(r, 300));
+      return {
+        theme: document.documentElement.dataset.theme,
+        gedrueckt: document.querySelector('.themen button[data-thema="hell"]').getAttribute('aria-pressed'),
+        grund: getComputedStyle(document.body).backgroundColor,
+        gemerkt: (await lz.einstellungenLesen()).thema,
+      };
+    })()`);
+    pruefe(dunkelZuerst === 'auto', 'ohne Wahl folgt die Oberfläche dem System', dunkelZuerst);
+    pruefe(nachHell.theme === 'light', 'der Schalter stellt auf Hell um', nachHell.theme);
+    pruefe(nachHell.gedrueckt === 'true', 'der gewählte Knopf ist als gedrückt markiert');
+    pruefe(nachHell.gemerkt === 'hell', 'die Wahl wird gemerkt', nachHell.gemerkt);
+
     console.log('\n· Startseite');
+    const schritteStand = await imFenster(`({
+      sichtbar: !document.getElementById('schritte').hidden,
+      stand: document.getElementById('schritteStand').textContent,
+      punkte: document.querySelectorAll('#schritteListe li').length,
+      offen: document.querySelectorAll('#schritteListe li:not([data-erledigt])').length,
+    })`);
+    pruefe(schritteStand.sichtbar, 'die Liste „Erste Schritte" steht auf der Startseite');
+    pruefe(schritteStand.punkte === 4, 'sie hat vier Punkte', String(schritteStand.punkte));
+    pruefe(schritteStand.offen === 4, 'am Anfang ist noch keiner erledigt', `offen: ${schritteStand.offen}`);
     await screenshot(win, '01-start.png');
     const vorlagenNamen = await imFenster('zustand.vorlagen.map((v) => v.id).join(", ")');
     pruefe(
@@ -729,6 +758,33 @@ app.whenReady().then(async () => {
     pruefe(nachher.auftraege === 1, 'der Auftrag steht in der Liste', String(nachher.auftraege));
     pruefe(/kann formatiert werden/.test(nachher.satz), 'die Ansicht zeigt denselben Satz', nachher.satz);
     await screenshot(win, '14-auftrag-fertig.png', '#auftragsListe');
+
+    const schritteDanach = await imFenster(`(async () => {
+      zeigeAnsicht('start');
+      await new Promise((r) => setTimeout(r, 300));
+      return {
+        stand: document.getElementById('schritteStand').textContent,
+        erledigt: document.querySelectorAll('#schritteListe li[data-erledigt]').length,
+      };
+    })()`);
+    pruefe(
+      schritteDanach.erledigt >= 3,
+      'die Erste-Schritte-Liste hakt sich durch die Arbeit selbst ab',
+      `${schritteDanach.stand} — ${schritteDanach.erledigt} erledigt`,
+    );
+
+    // Eine Aufnahme in Dunkel, damit beide Fassungen belegt sind.
+    await imFenster(`(async () => {
+      document.querySelector('.themen button[data-thema="dunkel"]').click();
+      await new Promise((r) => setTimeout(r, 300));
+    })()`);
+    const dunkel = await imFenster("document.documentElement.dataset.theme");
+    pruefe(dunkel === 'dark', 'der Schalter stellt auf Dunkel um', dunkel);
+    await screenshot(win, '15-dunkel.png');
+    await imFenster(`(async () => {
+      document.querySelector('.themen button[data-thema="hell"]').click();
+      await new Promise((r) => setTimeout(r, 250));
+    })()`);
 
     console.log('\n· Layout');
     for (const [breite, hoehe, name] of [[1240, 920, null], [900, 900, null], [620, 900, '05-schmal.png']]) {

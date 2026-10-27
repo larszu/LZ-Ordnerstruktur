@@ -67,6 +67,13 @@ test('pruefeAufstellung sagt, ob zwei Kopien möglich sind', () => {
   assert.match(ziele.pruefeAufstellung([]).hinweis, /kein Ziel eingerichtet/);
 });
 
+test('mitStand hängt die Beschriftung der Rolle an', () => {
+  const [ziel] = ziele.mitStand([{ pfad: '/arbeit', rolle: 'arbeit' }], () => ({ vorhanden: true, frei: 1024 }));
+  assert.equal(ziel.rolleLabel, 'Arbeitslaufwerk');
+  assert.equal(ziel.angeschlossen, true);
+  assert.equal(ziel.frei, 1024);
+});
+
 test('ein abgewähltes Ziel ist nicht einsatzbereit', () => {
   const liste = ziele.setzeZiel(
     ziele.ergaenzeZiel([], { pfad: '/arbeit' }).ziele,

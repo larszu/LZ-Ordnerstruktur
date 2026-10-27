@@ -38,8 +38,9 @@ jetzt in einer App.
 | ![Ordnerstruktur angelegt](docs/screenshots/03-erstellt.png) | ![Lightroom-Vorgaben](docs/screenshots/04-vorgaben.png) |
 | Angelegt — Vorschau und Ergebnis stimmen überein | Verwaltung der Lightroom-Vorgaben |
 
-Die Oberfläche passt sich der Fensterbreite an; unter 900 px wandert die
-Navigation nach oben und die Blöcke stehen untereinander:
+Die Oberfläche gibt es in **Hell und Dunkel** (oben rechts umschaltbar) und sie
+passt sich der Fensterbreite an; unter 900 px wandert die Navigation als
+Reiterband nach oben und die Blöcke stehen untereinander:
 
 <img src="docs/screenshots/05-schmal.png" alt="Schmales Fenster" width="380">
 
@@ -549,18 +550,39 @@ Importfenster.
 
 ## Gestaltung
 
-Die App folgt dem **Brand Guide 2.0 der Lars Zumpe Medienproduktion**
-(September 2026): Zumpe Navy und Deep Navy als Flächen, Off-White als Grund,
-Stahlblau für Linien, Schiefer für Sekundärtext, Public Sans als Schrift.
-Blau bleibt die Marke, Rot ist das Signal — Tally-Rot kommt genau zweimal vor,
-im Signet der Kopfzeile und im Fokusring. Keine Rundungen, keine Schatten,
-keine Verläufe: Struktur entsteht durch die Linie.
+Die Oberfläche folgt dem **Web- und App-Standard der Lars Zumpe
+Medienproduktion** (Oktober 2026). Die Rangfolge dort: erst einfach zu
+bedienen, dann auf jeder Fenstergröße gut, dann modern, dann markentreu.
+
+* **Flächen und Text sind neutral**, Markenblau ist der Akzent — Hauptaktion,
+  Fortschritt, Auswahl. Pro Ansicht gibt es genau eine gefüllte Hauptaktion.
+* **Tally-Rot bleibt Signal**: der Punkt im Signet und der Fokusring, sonst
+  nichts.
+* **Weiche Rundungen, ruhige Tiefe**, ein kaum sichtbarer Farbschein im
+  Hintergrund. Nur **Logo und Signet bleiben eckig** — der Kontrast dazu macht
+  sie markant.
+* **Hell und Dunkel** sind beide gestaltet und oben rechts umschaltbar
+  (*Wie das System · Hell · Dunkel*). Die Wahl gilt für alle Fenster und wird
+  gemerkt. Dunkel ist Anthrazit, nicht Schwarz.
+* **Public Sans**, Satzschreibung, Zahlen tabellarisch. Versalien nur in den
+  kleinen Überschriften.
+* **Leise Gamification**: Die Liste *Erste Schritte* auf der Startseite hakt
+  sich durch die Arbeit selbst ab und verschwindet, wenn alles steht; ein
+  laufender Sicherungsauftrag zeigt einen Balken, ein fertiger ein Häkchen.
+  Nichts davon blockiert etwas, nichts vergleicht mit anderen.
+
+<img src="docs/screenshots/15-dunkel.png" alt="Dieselbe Ansicht in Dunkel" width="640">
+
+Aus dem **Brand Guide 2.0** bleiben Palette, Logo, Signet und Tonfall
+unverändert; die Print-Regeln (keine Rundungen, keine Schatten, Versalien in
+Knöpfen) gelten für die Oberfläche nicht.
 
 Die Programmsymbole werden aus der Logo-Geometrie des Brand Kits erzeugt:
 
 ```bash
-npm run logo   # schreibt build/icon.png, build/icon.ico, src/renderer/signet.png
-               # und die Symbole für die Menüleiste (src/renderer/tray*.png)
+npm run logo   # schreibt build/icon.png, build/icon.ico, src/renderer/signet.svg
+               # (und .png) sowie die Symbole für die Menüleiste
+               # (src/renderer/tray*.png)
 ```
 
 ## Entwicklung
@@ -638,6 +660,10 @@ Ansichten und prüft unter anderem:
   jede Aufnahme auf beiden angeschlossenen Zielen ab, prüft jedes einzeln nach
   und gibt die Karte erst danach frei,
 * Urheber, Stichwörter und das GPS-Häkchen überleben einen Neustart,
+* der Schalter für die Darstellung stellt auf Hell und Dunkel um und merkt sich
+  die Wahl,
+* die Liste „Erste Schritte" steht auf der Startseite und hakt sich durch die
+  Arbeit selbst ab,
 * bei 1240, 900 und 620 px Fensterbreite scrollt die Seite nicht seitlich.
 
 Dabei entstehen die Screenshots in `docs/screenshots/`. Der Lauf endet mit

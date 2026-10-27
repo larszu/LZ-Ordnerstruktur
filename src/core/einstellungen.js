@@ -48,6 +48,8 @@ function standard() {
     kameras: [],
     // Was beim Import in die Kopien geschrieben wird
     metadaten: { urheber: '', rechte: '', stichworte: '', gpsEntfernen: false },
+    // Darstellung: 'auto' folgt dem System, sonst 'hell' oder 'dunkel'
+    thema: 'auto',
     // Sicherungsziele: wohin eine Karte kopiert wird, mit Rolle
     ziele: [],
     // Menüleiste und Kartenwache
@@ -65,6 +67,9 @@ function standard() {
     },
     // Womit eine Karte aus der Menüleiste gesichert wird (Schema und Auswahl)
     sicherung: { schema: 'datum', unterordner: '', umbenennen: false, methode: 'zeitgroesse' },
+    // Ist schon einmal eine Karte vollständig gesichert worden? Nur für die
+    // Liste „Erste Schritte" auf der Startseite.
+    schonGesichert: false,
   };
 }
 
