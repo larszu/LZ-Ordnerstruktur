@@ -54,6 +54,12 @@ const brücke = {
 
   // Ziele und Sichern im Hintergrund
   fensterZeigen: (ansicht) => ipcRenderer.invoke('fenster:zeigen', ansicht),
+
+  // Darstellung (hell / dunkel / wie das System)
+  themaLesen: () => ipcRenderer.invoke('thema:lesen'),
+  themaSchreiben: (wahl) => ipcRenderer.invoke('thema:schreiben', wahl),
+  aufThema: (handler) => ipcRenderer.on('thema:gesetzt', (_e, d) => handler(d)),
+
   zieleStand: () => ipcRenderer.invoke('ziele:stand'),
   zielHinzufuegen: (vorgabe) => ipcRenderer.invoke('ziele:hinzufuegen', vorgabe),
   zielAendern: (pfad, aenderungen) => ipcRenderer.invoke('ziele:aendern', { pfad, aenderungen }),

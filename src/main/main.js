@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow, dialog, ipcMain, shell, Menu, Notification } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, shell, Menu, Notification, nativeTheme } = require('electron');
 const fs = require('fs');
 const path = require('path');
 
@@ -63,7 +63,7 @@ function createWindow() {
     minWidth: 720,
     minHeight: 580,
     title: 'LZ Ordnerstruktur',
-    backgroundColor: '#f6f5f0',
+    backgroundColor: fensterFarbe(),
     // Auf macOS sitzt die Ampel im eigenen Header, unter Windows bleibt die
     // Systemleiste stehen.
     titleBarStyle: IST_MAC ? 'hiddenInset' : 'default',
@@ -524,7 +524,7 @@ function oeffneImportFenster() {
     minWidth: 760,
     minHeight: 560,
     title: 'Fotos und Videos importieren',
-    backgroundColor: '#f6f5f0',
+    backgroundColor: fensterFarbe(),
     parent: fenster || undefined,
     titleBarStyle: IST_MAC ? 'hiddenInset' : 'default',
     webPreferences: {
@@ -695,6 +695,10 @@ const warteschlange = new Warteschlange({
     if (ereignis.art === 'auftragFertig') {
       const auftrag = ereignis.stand.alle.find((a) => a.id === ereignis.auftragId);
       if (auftrag) benachrichtige(auftrag.formatieren ? 'Karte gesichert' : 'Sicherung nicht vollständig', auftrag.satz);
+      // Für die Liste „Erste Schritte": einmal vollständig gesichert reicht.
+      if (auftrag && auftrag.formatieren && !einstellungen.lade(userDir()).schonGesichert) {
+        einstellungen.speichere(userDir(), { schonGesichert: true });
+      }
     }
   },
 });
@@ -799,7 +803,7 @@ function oeffneKartenfenster(pfad) {
     minWidth: 460,
     minHeight: 440,
     title: 'Karte gesteckt',
-    backgroundColor: '#f6f5f0',
+    backgroundColor: fensterFarbe(),
     resizable: true,
     minimizable: false,
     fullscreenable: false,
@@ -998,6 +1002,36 @@ ipcMain.handle('auftraege:aufraeumen', () => {
 });
 
 ipcMain.handle('laufwerke:liste', () => listVolumes());
+
+const THEMEN = ['auto', 'hell', 'dunkel'];
+
+/** Die gemerkte Darstellung; davon hängt auch die Fensterfarbe beim Start ab. */
+function thema() {
+  const wert = einstellungen.lade(userDir()).thema;
+  return THEMEN.includes(wert) ? wert : 'auto';
+}
+
+/**
+ * Grundfarbe des Fensters, damit beim Öffnen nichts weiß aufblitzt, bevor die
+ * Oberfläche steht.
+ */
+function fensterFarbe() {
+  const wahl = thema();
+  const dunkel = wahl === 'dunkel' || (wahl === 'auto' && nativeTheme.shouldUseDarkColors);
+  return dunkel ? '#1e1f23' : '#fafaf8';
+}
+
+ipcMain.handle('thema:lesen', () => thema());
+
+ipcMain.handle('thema:schreiben', (_e, wahl) => {
+  const gewaehlt = THEMEN.includes(wahl) ? wahl : 'auto';
+  einstellungen.speichere(userDir(), { thema: gewaehlt });
+  // Die anderen Fenster ziehen mit.
+  for (const w of BrowserWindow.getAllWindows()) {
+    if (!w.isDestroyed()) w.webContents.send('thema:gesetzt', gewaehlt);
+  }
+  return gewaehlt;
+});
 
 ipcMain.handle('fenster:zeigen', (_e, ansicht) => {
   zeigeFenster(typeof ansicht === 'string' ? ansicht : '');

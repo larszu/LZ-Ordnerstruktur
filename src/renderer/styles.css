@@ -1,941 +1,1568 @@
-/* LZ Ordnerstruktur — Corporate Design der Lars Zumpe Medienproduktion,
-   Brand Guide 2.0 (September 2026).
+/* LZ Ordnerstruktur — Oberfläche nach dem LZM-Standard für Web und App
+   (Stand Oktober 2026).
 
-   Blau bleibt die Marke, Rot ist das Signal. Die App ist die helle Anwendung
-   der Palette (wie Print): Off-White als Grund, Navy als Fläche und Text.
-   Rot kommt genau zweimal vor — im Signet der Kopfzeile und im Fokusring.
-   Keine Rundungen, keine Schatten, keine Verläufe, keine Rahmen als Dekor:
-   Struktur entsteht durch die Linie, Bedeutung durch den Punkt. */
+   Einfach zu bedienen, auf jeder Fenstergröße gut, modern, markentreu — in
+   dieser Reihenfolge. Die Marke steckt im Signet, im blauen Akzent und im Ton;
+   die Print-Regeln (keine Rundungen, keine Schatten, Versalien) gelten hier
+   nicht mehr.
+
+   Flächen und Text sind neutral, Markenblau ist Akzent (Hauptaktion,
+   Fortschritt, Auswahl), Tally-Rot bleibt Signal (Fokus, Erfolg, Signet-Punkt).
+   Hell und Dunkel sind gleichwertig und im Kopf umschaltbar. */
+
+@layer tokens, base, komponenten, ansichten;
 
 @font-face {
   font-family: 'Public Sans';
   src: local('Public Sans');
 }
 
-:root {
-  /* Palette */
-  --navy: #1d324f;
-  --deep: #132040;
-  --offwhite: #f6f5f0;
-  --eis: #e1ecef;
-  --stahl: #8c9cb3;
-  --schiefer: #5c6b85;
-  --weiss: #ffffff;
-  --signal: #d6402e;
-
-  /* Rollen */
-  --grund: var(--offwhite);
-  --flaeche: var(--weiss);
-  --text: var(--navy);
-  --text-still: var(--schiefer);
-  --linie: rgba(29, 50, 79, 0.16);
-  --linie-stark: rgba(29, 50, 79, 0.34);
-  --linie-dunkel: rgba(246, 245, 240, 0.16);
-
-  /* Status — ausschließlich für Meldungen */
-  --ok: #2f7d5c;
-  --ok-flaeche: #e5f0ea;
-  --warn: #c8892b;
-  --warn-text: #8a5510;
-  --warn-flaeche: #fbf0de;
-  --fehler: #b04a3f;
-  --fehler-text: #8f382e;
-  --fehler-flaeche: #f7e7e4;
-
-  /* Raster: 8 px */
-  --s1: 4px;
-  --s2: 8px;
-  --s3: 12px;
-  --s4: 16px;
-  --s5: 24px;
-  --s6: 32px;
-  --s7: 48px;
-
-  --schrift: 'Public Sans', system-ui, 'Segoe UI', Roboto, Arial, sans-serif;
-  --mono: 'SF Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
-  --dur: 0.2s;
-}
-
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-  border-radius: 0;
-}
-
-/* Muss die display-Regeln der Bausteine schlagen — sonst bleiben Felder
-   sichtbar, die eine Vorlage gar nicht braucht. */
-[hidden] {
-  display: none !important;
-}
-
-html,
-body {
-  height: 100%;
-  margin: 0;
-}
-
-body {
-  display: flex;
-  flex-direction: column;
-  background: var(--grund);
-  color: var(--text);
-  font-family: var(--schrift);
-  font-size: 15px;
-  line-height: 1.55;
-  -webkit-font-smoothing: antialiased;
-}
-
-code,
-.mono {
-  font-family: var(--mono);
-  font-size: 0.87em;
-}
-
-code {
-  background: var(--eis);
-  color: var(--navy);
-  padding: 1px 6px;
-}
-
-a {
-  color: var(--navy);
-  font-weight: 600;
-  text-decoration: none;
-}
-
-a:hover {
-  text-decoration: underline;
-  text-underline-offset: 0.2em;
-}
-
-/* Fokus ist der eine Ort, an dem Rot außerhalb des Signets vorkommt. */
-:focus-visible {
-  outline: 2px solid var(--signal);
-  outline-offset: 3px;
-}
-
-/* --- Kopfzeile ----------------------------------------------------------- */
-
-.kopf {
-  display: flex;
-  align-items: center;
-  gap: var(--s4);
-  flex: none;
-  background: var(--deep);
-  color: var(--offwhite);
-  padding: var(--s3) var(--s5);
-  /* Auf macOS sitzt die Fensterampel im Header. */
-  padding-left: 88px;
-  -webkit-app-region: drag;
-}
-
-.kopf-signet {
-  display: block;
-  width: 34px;
-  height: 34px;
-  flex: none;
-}
-
-.kopf-titel {
-  flex: 1;
-  min-width: 0;
-}
-
-.kopf-titel h1 {
-  margin: 0;
-  font-size: 17px;
-  font-weight: 800;
-  letter-spacing: 0.01em;
-}
-
-.kopf-titel p {
-  margin: 0;
-  color: var(--stahl);
-  font-size: 12.5px;
-}
-
-.version {
-  color: var(--stahl);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-}
-
-/* --- Rahmen: Seitenleiste + Inhalt --------------------------------------- */
-
-.rahmen {
-  display: flex;
-  flex: 1;
-  min-height: 0;
-}
-
-.seitenleiste {
-  flex: none;
-  width: 232px;
-  background: var(--navy);
-  padding: var(--s4) 0 var(--s6);
-  overflow-y: auto;
-}
-
-.nav-kicker {
-  margin: var(--s4) var(--s4) var(--s1);
-  padding-bottom: var(--s1);
-  border-bottom: 1px solid var(--linie-dunkel);
-  color: var(--stahl);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-}
-
-.nav-kicker:first-child {
-  margin-top: 0;
-}
-
-.nav-knopf {
-  display: block;
-  width: 100%;
-  border: 0;
-  background: transparent;
-  color: var(--eis);
-  font: inherit;
-  font-size: 14px;
-  text-align: left;
-  padding: var(--s2) var(--s4);
-  cursor: pointer;
-  border-left: 3px solid transparent;
-  transition: background var(--dur) var(--ease);
-}
-
-.nav-knopf:hover {
-  background: rgba(246, 245, 240, 0.07);
-}
-
-.nav-knopf.aktiv {
-  background: rgba(246, 245, 240, 0.1);
-  border-left-color: var(--offwhite);
-  color: var(--offwhite);
-  font-weight: 700;
-}
-
-main {
-  flex: 1;
-  min-width: 0;
-  overflow-y: auto;
-  padding: var(--s6) var(--s6) var(--s7);
-}
-
-.ansicht {
-  display: none;
-  max-width: 940px;
-}
-
-.ansicht.aktiv {
-  display: block;
-}
-
-/* --- Typografie ---------------------------------------------------------- */
-
-.titel {
-  margin: 0 0 var(--s2);
-  font-size: 26px;
-  font-weight: 800;
-  letter-spacing: -0.01em;
-}
-
-.einleitung {
-  margin: 0 0 var(--s5);
-  max-width: 68ch;
-  color: var(--text-still);
-}
-
-/* Kopflinie: Kicker in Versalien, darunter die durchgehende Linie. */
-.kopflinie {
-  margin: var(--s6) 0 var(--s4);
-  border-bottom: 1px solid var(--linie-stark);
-  padding-bottom: var(--s1);
-}
-
-.kicker {
-  color: var(--schiefer);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-}
-
-.hinweis {
-  margin: var(--s2) 0;
-  max-width: 68ch;
-  color: var(--text-still);
-  font-size: 13px;
-}
-
-.hinweis.mono {
-  white-space: pre-wrap;
-  word-break: break-all;
-}
-
-.merkliste {
-  margin: 0 0 var(--s4);
-  padding-left: var(--s4);
-  max-width: 68ch;
-  color: var(--text-still);
-  font-size: 14px;
-}
-
-.merkliste li {
-  margin-bottom: var(--s2);
-}
-
-.merkliste strong {
-  color: var(--navy);
-}
-
-/* --- Startkacheln -------------------------------------------------------- */
-
-.kacheln {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 1px;
-  background: var(--linie);
-  border-top: 1px solid var(--linie);
-  border-bottom: 1px solid var(--linie);
-}
-
-.kachel {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s2);
-  border: 0;
-  background: var(--flaeche);
-  padding: var(--s5);
-  font: inherit;
-  text-align: left;
-  color: var(--text);
-  cursor: pointer;
-  transition: background var(--dur) var(--ease);
-}
-
-.kachel:hover {
-  background: var(--eis);
-}
-
-.kachel-titel {
-  font-size: 16px;
-  font-weight: 800;
-}
-
-.kachel-text {
-  color: var(--text-still);
-  font-size: 13px;
-}
-
-/* Eine Kopflinie ohne Inhalt darunter zeigt nur eine sinnlose Linie. */
-.kopflinie.leer,
-.kopflinie.leer + .meldungen {
-  display: none;
-}
-
-/* --- Ablaufband ---------------------------------------------------------- */
-
-.ablauf {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--s5);
-  margin-bottom: var(--s5);
-  padding-bottom: var(--s2);
-  border-bottom: 1px solid var(--linie);
-  color: var(--schiefer);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-/* --- Felder und Zeilen --------------------------------------------------- */
-
-.zeile {
-  display: flex;
-  align-items: flex-end;
-  gap: var(--s3);
-  margin-bottom: var(--s3);
-}
-
-.zeile-umbruch {
-  flex-wrap: wrap;
-}
-
-.zeile-still {
-  margin-top: var(--s6);
-  padding-top: var(--s3);
-  border-top: 1px solid var(--linie);
-}
-
-.feld {
-  display: block;
-  margin-bottom: var(--s3);
-}
-
-.feld > span,
-.feld-titel {
-  display: block;
-  margin-bottom: var(--s1);
-  color: var(--schiefer);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.feld > span em {
-  font-style: normal;
-  font-weight: 400;
-  letter-spacing: 0.04em;
-  text-transform: none;
-}
-
-.feld-schmal {
-  width: 190px;
-}
-
-.feld-breit {
-  flex: 1;
-  min-width: 220px;
-}
-
-.feld-tage {
-  width: 92px;
-}
-
-input[type='text'],
-input[type='date'],
-input[type='number'],
-select,
-textarea {
-  width: 100%;
-  border: 1px solid var(--linie-stark);
-  background: var(--flaeche);
-  color: var(--navy);
-  font: inherit;
-  font-size: 14px;
-  padding: var(--s2) var(--s3);
-}
-
-textarea {
-  font-family: var(--mono);
-  font-size: 12.5px;
-  resize: vertical;
-}
-
-input::placeholder,
-textarea::placeholder {
-  color: var(--stahl);
-}
-
-input:focus,
-select:focus,
-textarea:focus {
-  border-color: var(--navy);
-}
-
-input[readonly] {
-  background: var(--eis);
-  color: var(--schiefer);
-}
-
-input.ungueltig {
-  border-color: var(--fehler);
-  background: var(--fehler-flaeche);
-}
-
-input[disabled] {
-  background: var(--grund);
-  color: var(--stahl);
-}
-
-.ordnerzeile {
-  display: flex;
-  gap: var(--s2);
-}
-
-.pfad {
-  flex: 1;
-  min-width: 0;
-  padding: var(--s2) var(--s3);
-  background: var(--eis);
-  color: var(--schiefer);
-  font-family: var(--mono);
-  font-size: 12.5px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.schalterreihe {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--s2) var(--s5);
-  margin-bottom: var(--s3);
-}
-
-.schalterreihe-hoch {
-  flex-direction: column;
-  gap: var(--s2);
-}
-
-.schalter {
-  display: flex;
-  align-items: baseline;
-  gap: var(--s2);
-  font-size: 14px;
-  cursor: pointer;
-}
-
-.schalter input {
-  accent-color: var(--navy);
-}
-
-.schalter em {
-  color: var(--text-still);
-  font-style: normal;
-  font-size: 13px;
-}
-
-/* --- Knöpfe -------------------------------------------------------------- */
-
-.knopf {
-  border: 2px solid var(--navy);
-  background: var(--navy);
-  color: var(--offwhite);
-  font: inherit;
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  padding: var(--s2) var(--s4);
-  cursor: pointer;
-  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease);
-}
-
-.knopf:hover:not(:disabled) {
-  background: var(--deep);
-  border-color: var(--deep);
-}
-
-.knopf-still {
-  background: transparent;
-  color: var(--navy);
-  border-color: var(--linie-stark);
-}
-
-.knopf-still:hover:not(:disabled) {
-  background: transparent;
-  border-color: var(--navy);
-}
-
-.knopf-primaer {
-  padding: var(--s3) var(--s5);
-  font-size: 13px;
-}
-
-.knopf-klein {
-  padding: var(--s1) var(--s3);
-  font-size: 11px;
-}
-
-.knopf:disabled {
-  border-color: var(--linie);
-  background: transparent;
-  color: var(--stahl);
-  cursor: not-allowed;
-}
-
-.aktionen {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--s3);
-  margin: var(--s5) 0 var(--s2);
-}
-
-/* --- Projekte (Blöcke der Vorlage) --------------------------------------- */
-
-.projekte {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
-  gap: 1px;
-  background: var(--linie);
-  border: 1px solid var(--linie);
-}
-
-.projekte.einzeln {
-  grid-template-columns: 1fr;
-}
-
-.projekt {
-  background: var(--flaeche);
-  padding: var(--s4);
-}
-
-.projekt-kopf {
-  display: flex;
-  align-items: center;
-  gap: var(--s2);
-  cursor: pointer;
-  font-size: 15px;
-  font-weight: 800;
-}
-
-.projekt-kopf input {
-  accent-color: var(--navy);
-  width: 16px;
-  height: 16px;
-}
-
-.projekt-inhalt {
-  margin-top: var(--s3);
-}
-
-.projekt[data-aktiv='false'] .projekt-inhalt {
-  opacity: 0.45;
-  pointer-events: none;
-}
-
-.projekt-zeitraum {
-  display: flex;
-  gap: var(--s3);
-}
-
-.projekt-zeitraum .feld {
-  flex: 1;
-}
-
-fieldset {
-  margin: 0 0 var(--s3);
-  border: 0;
-  border-top: 1px solid var(--linie);
-  padding: var(--s2) 0 0;
-}
-
-legend {
-  padding: 0;
-  color: var(--schiefer);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.bereiche-liste {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-  gap: var(--s1) var(--s3);
-}
-
-.bereiche-liste label {
-  display: flex;
-  align-items: center;
-  gap: var(--s2);
-  font-size: 14px;
-  cursor: pointer;
-}
-
-.bereiche-liste input {
-  accent-color: var(--navy);
-}
-
-.namen {
-  display: flex;
-  gap: var(--s4);
-}
-
-.namen-spalte {
-  flex: 1;
-  min-width: 0;
-}
-
-.namen-spalte[data-frei='false'] {
-  opacity: 0.4;
-}
-
-.namen-liste {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s1);
-}
-
-.namen-liste input {
-  font-size: 13px;
-  padding: var(--s1) var(--s2);
-}
-
-/* --- Vorschau, Meldungen, Ergebnisse ------------------------------------- */
-
-.vorschau {
-  margin: var(--s3) 0;
-  border-top: 1px solid var(--linie);
-}
-
-.vorschau summary {
-  padding: var(--s2) 0;
-  color: var(--navy);
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.vorschau pre {
-  max-height: 340px;
-  overflow: auto;
-  margin: 0 0 var(--s3);
-  padding: var(--s3);
-  background: var(--flaeche);
-  border: 1px solid var(--linie);
-  font-family: var(--mono);
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--schiefer);
-}
-
-.mehr {
-  margin: var(--s4) 0;
-  border-top: 1px solid var(--linie);
-}
-
-.mehr > summary {
-  padding: var(--s2) 0;
-  color: var(--navy);
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.meldungen {
-  margin: var(--s3) 0;
-}
-
-.meldung {
-  display: flex;
-  align-items: baseline;
-  gap: var(--s3);
-  margin-bottom: var(--s2);
-  padding: var(--s2) var(--s3);
-  border-left: 3px solid var(--stahl);
-  font-size: 13.5px;
-}
-
-.meldung span {
-  flex: 1;
-}
-
-.meldung-erfolg {
-  border-left-color: var(--ok);
-  background: var(--ok-flaeche);
-  color: var(--ok);
-}
-
-.meldung-warnung {
-  border-left-color: var(--warn);
-  background: var(--warn-flaeche);
-  color: var(--warn-text);
-}
-
-.meldung-fehler {
-  border-left-color: var(--fehler);
-  background: var(--fehler-flaeche);
-  color: var(--fehler-text);
-}
-
-.sicherheit {
-  margin: 0 0 var(--s3);
-  max-width: 68ch;
-  color: var(--text-still);
-  font-size: 12.5px;
-}
-
-.fortschritt {
-  min-height: 22px;
-  color: var(--text-still);
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
-}
-
-.fortschritt-fehler {
-  color: var(--fehler-text);
-  font-weight: 700;
-}
-
-.fortschritt-fertig {
-  color: var(--ok);
-  font-weight: 700;
-}
-
-.zusammenfassung {
-  display: flex;
-  flex-wrap: wrap;
-  /* fit-content: die Trennlinie liegt zwischen den Kacheln, nicht als
-     graues Band bis zum Seitenrand. */
-  width: fit-content;
-  max-width: 100%;
-  gap: 1px;
-  margin: var(--s3) 0;
-  background: var(--linie);
-  border: 1px solid var(--linie);
-}
-
-.zusammenfassung:empty {
-  display: none;
-}
-
-.zahlkachel {
-  flex: 0 0 auto;
-  min-width: 128px;
-  background: var(--flaeche);
-  padding: var(--s3) var(--s4);
-}
-
-.zahlkachel .zahl {
-  display: block;
-  font-size: 22px;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-}
-
-.zahlkachel .etikett {
-  color: var(--text-still);
-  font-size: 12px;
-}
-
-.liste {
-  margin: var(--s3) 0 0;
-  padding: 0;
-  max-height: 340px;
-  overflow: auto;
-  list-style: none;
-  border: 1px solid var(--linie);
-  background: var(--flaeche);
-}
-
-.liste:empty {
-  display: none;
-}
-
-.liste li {
-  padding: var(--s1) var(--s3);
-  border-bottom: 1px solid var(--grund);
-  font-family: var(--mono);
-  font-size: 12px;
-  color: var(--schiefer);
-  white-space: pre-wrap;
-  word-break: break-all;
-}
-
-.liste li.mehr {
-  border-top: 0;
-  color: var(--stahl);
-  font-family: var(--schrift);
-  font-style: italic;
-  text-align: center;
-}
-
-/* --- Editorlisten (Vorlagen und Sachgruppen) ----------------------------- */
-
-.editorliste {
-  margin-bottom: var(--s3);
-}
-
-.editorzeile {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: var(--s3);
-  margin-bottom: var(--s2);
-}
-
-.editorzeile .feld {
-  margin-bottom: 0;
-}
-
-.editorblock {
-  margin-bottom: var(--s4);
-  padding: var(--s4);
-  background: var(--flaeche);
-  border-left: 3px solid var(--linie-stark);
-}
-
-/* --- Tabelle der Lightroom-Vorgaben -------------------------------------- */
-
-.tabelle-scroll {
-  overflow-x: auto;
-  border: 1px solid var(--linie);
-  background: var(--flaeche);
-}
-
-.vorgaben-tabelle {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-}
-
-.vorgaben-tabelle th {
-  background: var(--eis);
-  color: var(--schiefer);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  text-align: left;
-  padding: var(--s2) var(--s3);
-}
-
-.vorgaben-tabelle td {
-  padding: var(--s1) var(--s3);
-  border-top: 1px solid var(--linie);
-  vertical-align: middle;
-}
-
-.vorgaben-tabelle .spalte-aktiv {
-  width: 52px;
-  text-align: center;
-}
-
-.vorgaben-tabelle .spalte-aktion {
-  width: 110px;
-}
-
-.vorgaben-tabelle .leer,
-.gedaempft {
-  color: var(--stahl);
-}
-
-.marke {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.marke-eigen {
-  color: var(--navy);
-}
-
-.marke-mitgeliefert {
-  color: var(--stahl);
-}
-
-.meta-felder {
-  display: flex;
-  gap: var(--s2);
-}
-
-.meta-felder .kurz {
-  width: 74px;
-  flex: none;
-}
-
-/* --- Schmale Fenster ----------------------------------------------------- */
+/* ======================================================================== */
+@layer tokens {
+  :root {
+    color-scheme: light dark;
+
+    /* Palette aus dem Brand Guide — unverändert */
+    --deep-navy: #132040;
+    --navy: #1d324f;
+    --off-white: #f6f5f0;
+    --eisblau: #e1ecef;
+    --stahlblau: #8c9cb3;
+    --schiefer: #5c6b85;
+    --tally: #d6402e;
+
+    /* Neutrale Basis */
+    --neutral-0: #fafaf8;
+    --neutral-1: #ffffff;
+    --neutral-2: #f1f1ee;
+    --ink-strong: #16181d;
+    --ink: #2b2e35;
+    --ink-muted: #6a6e77;
+    --night-0: #1e1f23;
+    --night-1: #28292e;
+    --night-2: #33343a;
+    --night-3: #3b3c42;
+    --blau-hell: color-mix(in oklab, var(--stahlblau), var(--eisblau) 50%);
+
+    --surface-0: light-dark(var(--neutral-0), var(--night-0));
+    --surface-1: light-dark(var(--neutral-1), var(--night-1));
+    --surface-2: light-dark(var(--neutral-2), var(--night-2));
+    --surface-3: light-dark(var(--neutral-1), var(--night-3));
+    --glass: color-mix(in oklab, var(--surface-0) 82%, transparent);
+
+    --text-strong: light-dark(var(--ink-strong), var(--off-white));
+    --text: light-dark(var(--ink), #e4e4e1);
+    --text-muted: light-dark(var(--ink-muted), #a9acb4);
+
+    --line: light-dark(rgb(22 24 29 / 0.08), rgb(246 245 240 / 0.08));
+    --line-strong: light-dark(rgb(22 24 29 / 0.18), rgb(246 245 240 / 0.18));
+
+    --accent: light-dark(var(--navy), var(--blau-hell));
+    --accent-text: light-dark(var(--off-white), var(--deep-navy));
+    --accent-soft: color-mix(in oklab, var(--accent) 10%, transparent);
+
+    /* Das Logo trägt nie den Akzent, sondern die Kit-Farben. */
+    --logo: light-dark(var(--navy), var(--off-white));
+
+    --glow-1: light-dark(rgb(29 50 79 / 0.1), rgb(185 199 216 / 0.16));
+    --glow-2: rgb(200 137 43 / 0.1);
+
+    --signal: var(--tally);
+    --focus: var(--tally);
+
+    --ok: #2f7d5c;
+    --warn: #c8892b;
+    --error: #b04a3f;
+    --ok-soft: color-mix(in oklab, var(--ok) 14%, transparent);
+    --warn-soft: color-mix(in oklab, var(--warn) 14%, transparent);
+    --error-soft: color-mix(in oklab, var(--error) 14%, transparent);
+    --ok-text: light-dark(color-mix(in oklab, var(--ok), var(--ink-strong) 90%), color-mix(in oklab, var(--ok), var(--off-white) 55%));
+    --warn-text: light-dark(color-mix(in oklab, var(--warn), var(--ink-strong) 65%), color-mix(in oklab, var(--warn), var(--off-white) 80%));
+    --error-text: light-dark(var(--error), color-mix(in oklab, var(--error), var(--off-white) 50%));
+
+    --state: light-dark(var(--ink-strong), var(--off-white));
+    --state-hover: 6%;
+    --state-press: 10%;
+
+    --radius-s: 6px;
+    --radius-m: 10px;
+    --radius-l: 20px;
+    --radius-xl: 24px;
+    --radius-full: 999px;
+
+    --shadow-1: 0 1px 2px light-dark(rgb(22 24 29 / 0.06), rgb(0 0 0 / 0.3));
+    --shadow-2: 0 4px 16px light-dark(rgb(22 24 29 / 0.08), rgb(0 0 0 / 0.4));
+    --shadow-3: 0 16px 48px light-dark(rgb(22 24 29 / 0.14), rgb(0 0 0 / 0.55));
+
+    --font: 'Public Sans', system-ui, 'Segoe UI', Roboto, Arial, sans-serif;
+    --mono: 'SF Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --fs-title: clamp(1.5rem, 2vw + 1rem, 2rem);
+    --fs-section: clamp(1.125rem, 0.5vw + 1rem, 1.25rem);
+    --fs-body: 1rem;
+    --fs-ui: 0.9375rem;
+    --fs-meta: 0.8125rem;
+    --fs-overline: 0.75rem;
+
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-12: 48px;
+
+    --control-h: 40px;
+    --row-h: 44px;
+    --touch: 44px;
+
+    --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+    --ease-spring: linear(0, 0.5 15%, 0.9 30%, 1.04 45%, 1.01 65%, 1);
+    --dur-1: 120ms;
+    --dur-2: 220ms;
+    --dur-3: 360ms;
+  }
+
+  :root[data-theme='dark'] { color-scheme: dark; }
+  :root[data-theme='light'] { color-scheme: light; }
+
+  @media (pointer: coarse) {
+    :root { --control-h: 48px; --row-h: 52px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :root { --dur-2: 0ms; --dur-3: 120ms; --ease-spring: var(--ease); }
+  }
+}
+
+/* ======================================================================== */
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  /* Muss die display-Regeln der Bausteine schlagen — sonst bleiben Felder
+     sichtbar, die eine Vorlage gar nicht braucht. */
+  [hidden] {
+    display: none !important;
+  }
+
+  html,
+  body {
+    height: 100%;
+    margin: 0;
+  }
+
+  body {
+    display: flex;
+    flex-direction: column;
+    background: var(--surface-0);
+    color: var(--text);
+    font: 400 var(--fs-body)/1.55 var(--font);
+    font-synthesis: none;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Atmosphäre: zwei sehr weiche Scheine, fest im Fenster, nie über Inhalt. */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(56rem 36rem at 8% -12%, var(--glow-1), transparent 62%),
+      radial-gradient(44rem 30rem at 105% 4%, var(--glow-2), transparent 60%);
+  }
+
+  h1,
+  h2,
+  h3 {
+    margin: 0;
+    color: var(--text-strong);
+    line-height: 1.2;
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  code,
+  .mono {
+    font-family: var(--mono);
+    font-size: 0.87em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  code {
+    padding: 1px 6px;
+    border-radius: var(--radius-s);
+    background: var(--surface-2);
+    color: var(--text-strong);
+  }
+
+  a {
+    color: var(--accent);
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  a:hover {
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+
+  /* Der Fokusring ist einer der wenigen Orte, an denen Rot auftritt. */
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--accent) 22%, transparent);
+  }
+}
+
+/* ======================================================================== */
+@layer komponenten {
+  /* --- Kopfzeile --------------------------------------------------------- */
+
+  .kopf {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    flex: none;
+    padding: var(--space-3) var(--space-5);
+    /* Auf macOS sitzt die Fensterampel im Header. */
+    padding-left: 88px;
+    background: var(--glass);
+    backdrop-filter: blur(16px) saturate(1.4);
+    border-bottom: 1px solid var(--line);
+  }
+
+  /* Das Signet bleibt eckig — der Kontrast zur weichen Oberfläche macht es
+     markant. Die Wortmarke erbt die Farbe, der Punkt bleibt Signalrot. */
+  .kopf-signet {
+    flex: none;
+    width: 30px;
+    height: 30px;
+    color: var(--logo);
+    border-radius: 0;
+  }
+
+  .kopf-titel {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .kopf-titel h1 {
+    font-size: var(--fs-section);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  .kopf-titel p {
+    margin: 2px 0 0;
+    color: var(--text-muted);
+    font-size: var(--fs-meta);
+  }
+
+  .version {
+    flex: none;
+    color: var(--text-muted);
+    font-size: var(--fs-meta);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* --- Darstellung: Auto · Hell · Dunkel --------------------------------- */
+
+  .themen {
+    display: flex;
+    flex: none;
+    gap: 2px;
+    padding: 3px;
+    border-radius: var(--radius-full);
+    background: var(--surface-2);
+  }
+
+  .themen button {
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 30px;
+    border: 0;
+    border-radius: var(--radius-full);
+    background: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
+  }
+
+  .themen button:hover {
+    color: var(--text-strong);
+  }
+
+  .themen button[aria-pressed='true'] {
+    background: var(--surface-1);
+    color: var(--accent);
+    box-shadow: var(--shadow-1);
+  }
+
+  .themen svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  /* --- Gerüst: Navigation + Inhalt --------------------------------------- */
+
+  .rahmen {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .seitenleiste {
+    flex: none;
+    width: 236px;
+    padding: var(--space-4) var(--space-3) var(--space-8);
+    overflow-y: auto;
+    border-right: 1px solid var(--line);
+  }
+
+  .nav-kicker {
+    margin: var(--space-5) var(--space-3) var(--space-1);
+    color: var(--text-muted);
+    font-size: var(--fs-overline);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .nav-kicker:first-child {
+    margin-top: 0;
+  }
+
+  .nav-knopf {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-height: var(--row-h);
+    padding: var(--space-2) var(--space-3);
+    border: 0;
+    border-radius: var(--radius-m);
+    background: transparent;
+    color: var(--text);
+    font: 500 var(--fs-ui)/1.3 var(--font);
+    text-align: left;
+    cursor: pointer;
+    transition: background var(--dur-1) var(--ease);
+  }
+
+  .nav-knopf:hover {
+    background: color-mix(in oklab, var(--state) var(--state-hover), transparent);
+  }
+
+  .nav-knopf.aktiv {
+    background: var(--accent-soft);
+    color: var(--text-strong);
+    font-weight: 650;
+  }
+
+  main {
+    flex: 1;
+    min-width: 0;
+    overflow-y: auto;
+    padding: var(--space-8) var(--space-6) var(--space-12);
+    container-type: inline-size;
+  }
+
+  .ansicht {
+    display: none;
+    max-width: 940px;
+  }
+
+  .ansicht.aktiv {
+    display: block;
+  }
+
+  /* --- Typografie -------------------------------------------------------- */
+
+  .titel {
+    margin: 0 0 var(--space-2);
+    font-size: var(--fs-title);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  .einleitung {
+    margin: 0 0 var(--space-6);
+    max-width: 68ch;
+    color: var(--text-muted);
+  }
+
+  .kopflinie {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-3);
+    margin: var(--space-8) 0 var(--space-3);
+  }
+
+  .kicker {
+    color: var(--text-muted);
+    font-size: var(--fs-overline);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .hinweis {
+    margin: var(--space-2) 0;
+    max-width: 68ch;
+    color: var(--text-muted);
+    font-size: var(--fs-meta);
+  }
+
+  .hinweis.mono {
+    font-family: var(--mono);
+  }
+
+  .merkliste {
+    margin: 0 0 var(--space-4);
+    padding-left: 1.1em;
+    color: var(--text-muted);
+    font-size: var(--fs-meta);
+  }
+
+  .merkliste li {
+    margin-bottom: var(--space-1);
+  }
+
+  .merkliste strong {
+    color: var(--text-strong);
+  }
+
+  /* --- Kacheln auf der Startseite ---------------------------------------- */
+
+  .kacheln {
+    display: grid;
+    gap: var(--space-4);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+    margin-bottom: var(--space-6);
+  }
+
+  .kachel {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-5);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-l);
+    background: var(--surface-1);
+    box-shadow: var(--shadow-1);
+    font: inherit;
+    text-align: left;
+    color: inherit;
+    cursor: pointer;
+    transition: box-shadow var(--dur-2) var(--ease), translate var(--dur-2) var(--ease);
+  }
+
+  @media (hover: hover) {
+    .kachel:hover {
+      box-shadow: var(--shadow-2);
+      translate: 0 -2px;
+    }
+  }
+
+  .kachel-titel {
+    font-size: var(--fs-section);
+    font-weight: 650;
+    color: var(--text-strong);
+  }
+
+  .kachel-text {
+    color: var(--text-muted);
+    font-size: var(--fs-meta);
+  }
+
+  .kopflinie.leer,
+  .kopflinie.leer + .meldungen {
+    display: none;
+  }
+
+  /* --- Ablaufband -------------------------------------------------------- */
+
+  .ablauf {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin: 0 0 var(--space-5);
+  }
+
+  .ablauf span {
+    padding: 2px var(--space-3);
+    border-radius: var(--radius-full);
+    background: var(--surface-2);
+    color: var(--text-muted);
+    font-size: var(--fs-meta);
+    font-weight: 500;
+  }
+
+  /* --- Zeilen und Felder ------------------------------------------------- */
+
+  .zeile {
+    display: flex;
+    align-items: flex-end;
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+  }
+
+  .zeile-umbruch {
+    flex-wrap: wrap;
+  }
+
+  .zeile-still {
+    color: var(--text-muted);
+  }
+
+  .feld {
+    display: grid;
+    gap: var(--space-1);
+    min-width: 0;
+    flex: 1;
+    margin-bottom: var(--space-3);
+  }
+
+  /* In einer Zeile sorgt deren Abstand für den Rand. */
+  .zeile .feld,
+  .editorzeile .feld {
+    margin-bottom: 0;
+  }
+
+  .feld > span,
+  .feld-titel {
+    color: var(--text-strong);
+    font-size: var(--fs-meta);
+    font-weight: 500;
+  }
+
+  .feld > span em {
+    color: var(--text-muted);
+    font-style: normal;
+    font-weight: 400;
+  }
+
+  .feld-schmal {
+    flex: 0 1 220px;
+  }
+
+  .feld-breit {
+    flex: 2 1 320px;
+  }
+
+  .feld-tage {
+    flex: 0 0 130px;
+  }
+
+  /* Das Jahr erbt den Platz seines Platzhalters — sonst steht dort ein
+     abgeschnittener Satz. */
+  #feldJahr {
+    flex: 0 1 300px;
+  }
+
+  input[type='text'],
+  input[type='number'],
+  input[type='date'],
+  select,
+  textarea {
+    width: 100%;
+    min-height: var(--control-h);
+    padding: 0 var(--space-3);
+    border: 1px solid transparent;
+    border-radius: var(--radius-m);
+    background: var(--surface-2);
+    color: var(--text-strong);
+    font: 400 var(--fs-ui)/1.4 var(--font);
+    transition: border-color var(--dur-1) var(--ease);
+  }
+
+  input[type='text']:hover,
+  input[type='number']:hover,
+  input[type='date']:hover,
+  select:hover {
+    border-color: var(--line-strong);
+  }
+
+  input:disabled,
+  select:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  input.ungueltig {
+    border-color: var(--error);
+    background: var(--error-soft);
+  }
+
+  input[readonly] {
+    color: var(--text-muted);
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--text-muted);
+  }
+
+  textarea {
+    padding: var(--space-2) var(--space-3);
+    font-family: var(--mono);
+    font-size: 12.5px;
+    resize: vertical;
+  }
+
+  select {
+    appearance: none;
+    padding-right: var(--space-8);
+    background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
+      linear-gradient(135deg, currentColor 50%, transparent 50%);
+    background-position: right 18px center, right 13px center;
+    background-size: 5px 5px;
+    background-repeat: no-repeat;
+    cursor: pointer;
+  }
+
+  .ordnerzeile {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .ordnerzeile input {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .pfad {
+    /* Auch außerhalb einer Zeile ein Block — sonst läuft ein langer Pfad als
+       Inline-Element aus seiner Karte heraus. */
+    display: block;
+    flex: 1;
+    min-width: 0;
+    max-width: 100%;
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-m);
+    background: var(--surface-2);
+    color: var(--text-muted);
+    font-family: var(--mono);
+    font-size: var(--fs-meta);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .pfad-klein {
+    display: block;
+    font-size: 11.5px;
+  }
+
+  /* --- Schalter ---------------------------------------------------------- */
+
+  .schalterreihe {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-5);
+    margin-bottom: var(--space-4);
+  }
+
+  .schalterreihe-hoch {
+    flex-direction: column;
+  }
+
+  .schalter {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-2);
+    min-height: var(--touch);
+    padding: var(--space-2) 0;
+    font-size: var(--fs-ui);
+    cursor: pointer;
+  }
+
+  .schalter input {
+    flex: none;
+    margin-top: 2px;
+    width: 18px;
+    height: 18px;
+    accent-color: var(--accent);
+  }
+
+  .schalter em {
+    display: block;
+    color: var(--text-muted);
+    font-size: var(--fs-meta);
+    font-style: normal;
+  }
+
+  /* --- Knöpfe ------------------------------------------------------------ */
+
+  .knopf {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    min-height: var(--control-h);
+    padding: 0 var(--space-4);
+    border: 0;
+    border-radius: var(--radius-m);
+    background: var(--surface-2);
+    color: var(--text-strong);
+    font: 600 var(--fs-ui)/1 var(--font);
+    cursor: pointer;
+    transition: background var(--dur-1) var(--ease), scale var(--dur-1) var(--ease);
+  }
+
+  .knopf:hover:not(:disabled) {
+    background: color-mix(in oklab, var(--state) var(--state-hover), transparent);
+  }
+
+  .knopf:active:not(:disabled) {
+    scale: 0.97;
+  }
+
+  /* Eine gefüllte Hauptaktion je Ansicht — mit weichem Schein darunter. */
+  .knopf-primaer {
+    background: var(--accent);
+    color: var(--accent-text);
+    box-shadow: var(--shadow-1), 0 6px 18px color-mix(in oklab, var(--accent) 28%, transparent);
+  }
+
+  .knopf-primaer:hover:not(:disabled) {
+    background: color-mix(in oklab, var(--accent), var(--surface-0) 12%);
+    translate: 0 -1px;
+  }
+
+  .knopf-still {
+    background: transparent;
+  }
+
+  .knopf-still:hover:not(:disabled) {
+    background: color-mix(in oklab, var(--state) var(--state-hover), transparent);
+  }
+
+  .knopf-klein {
+    min-height: 32px;
+    padding: 0 var(--space-3);
+    font-size: var(--fs-meta);
+  }
+
+  .knopf:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+
+  .aktionen {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3);
+    margin: var(--space-6) 0 var(--space-4);
+  }
+
+  /* --- Meldungen --------------------------------------------------------- */
+
+  .meldungen {
+    display: grid;
+    gap: var(--space-2);
+    margin-bottom: var(--space-4);
+  }
+
+  .meldung {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-m);
+    background: var(--surface-2);
+    font-size: var(--fs-ui);
+  }
+
+  .meldung-erfolg {
+    background: var(--ok-soft);
+    color: var(--ok-text);
+  }
+
+  .meldung-warnung {
+    background: var(--warn-soft);
+    color: var(--warn-text);
+  }
+
+  .meldung-fehler {
+    background: var(--error-soft);
+    color: var(--error-text);
+  }
+
+  .sicherheit {
+    margin: var(--space-4) 0;
+    padding: var(--space-4);
+    border-radius: var(--radius-l);
+    background: var(--surface-2);
+    color: var(--text-muted);
+    font-size: var(--fs-meta);
+  }
+
+  /* --- Fortschritt und Zahlen -------------------------------------------- */
+
+  .fortschritt {
+    color: var(--text-muted);
+    font-size: var(--fs-meta);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .fortschritt-fehler {
+    color: var(--error-text);
+  }
+
+  .fortschritt-fertig {
+    color: var(--ok-text);
+  }
+
+  .zusammenfassung {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    margin: var(--space-4) 0;
+  }
+
+  .zusammenfassung:empty {
+    display: none;
+  }
+
+  .zahlkachel {
+    flex: 0 1 150px;
+    display: grid;
+    gap: 2px;
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-l);
+    background: var(--surface-1);
+    box-shadow: var(--shadow-1);
+  }
+
+  .zahlkachel .zahl {
+    color: var(--text-strong);
+    font-size: 1.75rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+  }
+
+  .zahlkachel .etikett {
+    color: var(--text-muted);
+    font-size: var(--fs-meta);
+  }
+
+  .zahlkachel-neu .zahl {
+    color: var(--accent);
+  }
+
+  .zahlkachel-gleich .zahl {
+    color: var(--ok-text);
+  }
+
+  .zahlkachel-anders .zahl {
+    color: var(--warn-text);
+  }
+
+  /* Balken: zeigt, wie weit etwas ist — und ist anklickbar, wo es hilft. */
+  .balken {
+    height: 8px;
+    margin-top: var(--space-2);
+    border-radius: var(--radius-full);
+    background: var(--surface-2);
+    overflow: hidden;
+  }
+
+  .balken > span {
+    display: block;
+    height: 100%;
+    width: calc(var(--p, 0) * 100%);
+    border-radius: inherit;
+    background: var(--accent);
+    transition: width var(--dur-3) var(--ease-spring);
+  }
+
+  .balken[data-fertig] > span {
+    background: var(--ok);
+  }
+
+  /* --- Listen ------------------------------------------------------------ */
+
+  .liste {
+    display: grid;
+    gap: 2px;
+    margin: 0 0 var(--space-4);
+    padding: 0;
+    list-style: none;
+    max-height: 320px;
+    overflow-y: auto;
+  }
+
+  .liste:empty {
+    display: none;
+  }
+
+  .liste li {
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-m);
+    background: var(--surface-1);
+    font-family: var(--mono);
+    font-size: var(--fs-meta);
+    word-break: break-all;
+  }
+
+  .liste li.mehr {
+    background: none;
+    color: var(--text-muted);
+    font-family: var(--font);
+  }
+
+  /* --- Editorlisten (Vorlagen, Kameras, Ziele) --------------------------- */
+
+  .editorliste {
+    display: grid;
+    gap: var(--space-2);
+    margin-bottom: var(--space-4);
+  }
+
+  .editorzeile {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: var(--space-3);
+  }
+
+  .editorzeile .feld {
+    margin: 0;
+  }
+
+  .editorblock {
+    padding: var(--space-4);
+    border-radius: var(--radius-l);
+    background: var(--surface-1);
+    box-shadow: var(--shadow-1);
+  }
+
+  /* --- Tabellen (werden schmal zu Karten) -------------------------------- */
+
+  .tabelle-scroll {
+    overflow-x: auto;
+    margin-bottom: var(--space-4);
+  }
+
+  .vorgaben-tabelle {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--fs-ui);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .vorgaben-tabelle th {
+    padding: var(--space-2) var(--space-3);
+    color: var(--text-muted);
+    font-size: var(--fs-meta);
+    font-weight: 600;
+    text-align: left;
+  }
+
+  .vorgaben-tabelle td {
+    padding: var(--space-3);
+    border-top: 1px solid var(--line);
+    vertical-align: middle;
+  }
+
+  .vorgaben-tabelle .spalte-aktiv {
+    width: 48px;
+  }
+
+  .vorgaben-tabelle .spalte-aktion {
+    width: 120px;
+  }
+
+  .vorgaben-tabelle .leer,
+  .gedaempft {
+    color: var(--text-muted);
+  }
+
+  .marke {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px var(--space-2);
+    border-radius: var(--radius-full);
+    background: var(--surface-2);
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .marke-eigen {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+
+  .marke-mitgeliefert {
+    background: var(--surface-2);
+  }
+
+  .meta-felder {
+    display: grid;
+    gap: var(--space-2);
+  }
+
+  .meta-felder .kurz {
+    color: var(--text-muted);
+    font-size: var(--fs-meta);
+  }
+
+  /* --- Klapp-Bereiche ---------------------------------------------------- */
+
+  .vorschau,
+  .mehr {
+    margin-bottom: var(--space-4);
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-l);
+    background: var(--surface-1);
+    box-shadow: var(--shadow-1);
+  }
+
+  .vorschau summary,
+  .mehr > summary {
+    cursor: pointer;
+    color: var(--text-strong);
+    font-size: var(--fs-ui);
+    font-weight: 600;
+  }
+
+  .vorschau pre,
+  .probe {
+    max-height: 320px;
+    margin: var(--space-3) 0 0;
+    padding: var(--space-3);
+    border-radius: var(--radius-m);
+    background: var(--surface-2);
+    color: var(--text-muted);
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.5;
+    overflow: auto;
+  }
+
+  /* --- Geräte und Ziele -------------------------------------------------- */
+
+  .geraete {
+    display: grid;
+    gap: var(--space-2);
+    margin: var(--space-3) 0;
+  }
+
+  .geraet {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-height: var(--row-h);
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-l);
+    background: var(--surface-1);
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: background var(--dur-1) var(--ease), box-shadow var(--dur-2) var(--ease);
+  }
+
+  .geraet:hover {
+    background: color-mix(in oklab, var(--state) var(--state-hover), transparent);
+  }
+
+  .geraet.aktiv {
+    background: var(--accent-soft);
+    border-color: color-mix(in oklab, var(--accent) 40%, transparent);
+  }
+
+  .geraet-still {
+    cursor: default;
+    color: var(--text-muted);
+  }
+
+  .geraet-still:hover {
+    background: var(--surface-1);
+  }
+
+  .geraet-name {
+    color: var(--text-strong);
+    font-weight: 600;
+  }
+
+  .geraet-info {
+    color: var(--text-muted);
+    font-size: var(--fs-meta);
+  }
+
+  .hinweis .warn,
+  .werkzeug-hinweis .warn {
+    color: var(--warn-text);
+    font-weight: 600;
+  }
+
+  /* --- Statuszeichen im Import ------------------------------------------- */
+
+  .kat {
+    display: inline-flex;
+    padding: 1px var(--space-2);
+    border-radius: var(--radius-full);
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .kat-neu {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+
+  .kat-gleich {
+    background: var(--ok-soft);
+    color: var(--ok-text);
+  }
+
+  .kat-anders {
+    background: var(--warn-soft);
+    color: var(--warn-text);
+  }
+
+  .spalte-kat {
+    width: 110px;
+  }
+
+  .import-tabelle {
+    max-height: 340px;
+    overflow-y: auto;
+  }
+}
+
+/* ======================================================================== */
+@layer ansichten {
+  /* --- Ordnerstruktur: Blöcke -------------------------------------------- */
+
+  .projekte {
+    display: grid;
+    gap: var(--space-4);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+    margin-bottom: var(--space-5);
+  }
+
+  .projekte.einzeln {
+    grid-template-columns: 1fr;
+  }
+
+  .projekt {
+    padding: var(--space-4);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-l);
+    background: var(--surface-1);
+    box-shadow: var(--shadow-1);
+  }
+
+  .projekt-kopf {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
+  }
+
+  .projekt-kopf input {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--accent);
+  }
+
+  .projekt-titel {
+    font-size: var(--fs-section);
+    font-weight: 650;
+    color: var(--text-strong);
+  }
+
+  .projekt-inhalt {
+    display: grid;
+    gap: var(--space-3);
+  }
+
+  .projekt[data-aktiv='false'] .projekt-inhalt {
+    opacity: 0.45;
+    pointer-events: none;
+  }
+
+  .projekt-zeitraum {
+    display: flex;
+    gap: var(--space-3);
+  }
+
+  .projekt-zeitraum .feld {
+    flex: 1;
+  }
+
+  .bereiche-liste {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  .bereiche-liste label {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: 32px;
+    padding: 0 var(--space-3);
+    border-radius: var(--radius-full);
+    background: var(--surface-2);
+    font-size: var(--fs-meta);
+    cursor: pointer;
+  }
+
+  .bereiche-liste label:has(input:checked) {
+    background: var(--accent-soft);
+    color: var(--text-strong);
+    font-weight: 600;
+  }
+
+  .bereiche-liste input {
+    width: 15px;
+    height: 15px;
+    accent-color: var(--accent);
+  }
+
+  /* Fieldsets tragen hier keine Kastenlinie — die Überschrift genügt. */
+  fieldset {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    min-width: 0;
+  }
+
+  legend {
+    padding: 0;
+    color: var(--text-muted);
+    font-size: var(--fs-overline);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .bereiche legend {
+    margin-bottom: var(--space-2);
+  }
+
+  .namen {
+    display: flex;
+    gap: var(--space-3);
+  }
+
+  .namen-spalte {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .namen-spalte[data-frei='false'] {
+    opacity: 0.45;
+  }
+
+  .namen-liste {
+    display: grid;
+    gap: var(--space-1);
+    margin-top: var(--space-1);
+  }
+
+  .namen-liste input {
+    min-height: 32px;
+    font-size: var(--fs-meta);
+  }
+
+  /* --- Sichern: Ziele, Aufträge, Kartenfenster --------------------------- */
+
+  /* Der Satz, auf den es am Drehtag ankommt: darf die Karte gelöscht werden? */
+  .satz {
+    margin: 0 0 var(--space-3);
+    padding: var(--space-4) var(--space-5);
+    border-radius: var(--radius-l);
+    background: var(--surface-2);
+    color: var(--text-strong);
+    font-size: 1.0625rem;
+    font-weight: 600;
+    line-height: 1.4;
+  }
+
+  .satz-warnung {
+    background: var(--warn-soft);
+    color: var(--warn-text);
+  }
+
+  .satz-erfolg {
+    background: var(--ok-soft);
+    color: var(--ok-text);
+  }
+
+  .satz-fehler {
+    background: var(--error-soft);
+    color: var(--error-text);
+  }
+
+  .zielkarte {
+    padding: var(--space-4);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-l);
+    background: var(--surface-1);
+    box-shadow: var(--shadow-1);
+  }
+
+  .zielkarte .pfad {
+    margin-top: var(--space-2);
+  }
+
+  .zielstand {
+    font-size: var(--fs-meta);
+    white-space: nowrap;
+  }
+
+  .zielstand.gut,
+  .zielzeile-stand.gut {
+    color: var(--ok-text);
+  }
+
+  .zielstand.warn,
+  .zielzeile-stand.warn {
+    color: var(--warn-text);
+  }
+
+  .zielliste {
+    display: grid;
+    gap: 2px;
+    margin: 0 0 var(--space-3);
+    padding: 0;
+    list-style: none;
+  }
+
+  .zielzeile {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-2) var(--space-3);
+    min-height: var(--row-h);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-m);
+    background: var(--surface-2);
+  }
+
+  .zielzeile-kopf {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    min-width: 0;
+  }
+
+  .zielzeile-name {
+    color: var(--text-strong);
+    font-weight: 600;
+  }
+
+  .rolle {
+    padding: 1px var(--space-2);
+    border-radius: var(--radius-full);
+    background: var(--surface-1);
+    color: var(--text-muted);
+    font-size: var(--fs-overline);
+    font-weight: 600;
+  }
+
+  .zielzeile-stand {
+    color: var(--text-muted);
+    font-size: var(--fs-meta);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .auftraege {
+    display: grid;
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+  }
+
+  .auftrag {
+    padding: var(--space-4);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-l);
+    background: var(--surface-1);
+    box-shadow: var(--shadow-1);
+  }
+
+  .auftrag .satz {
+    margin-bottom: var(--space-3);
+    padding: 0;
+    background: none;
+    font-size: var(--fs-ui);
+  }
+
+  .auftrag-fertig .satz-erfolg::before {
+    content: '';
+    display: inline-block;
+    width: 1.1em;
+    height: 1.1em;
+    margin-right: 0.4em;
+    vertical-align: -0.2em;
+    border-radius: 50%;
+    background: var(--ok) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M5 10l3 3 7-7' stroke='white' stroke-width='2.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/0.8em no-repeat;
+    animation: aufpoppen 420ms var(--ease-spring) both;
+  }
+
+  @keyframes aufpoppen {
+    0% { scale: 0.6; opacity: 0; }
+    60% { scale: 1.08; opacity: 1; }
+    100% { scale: 1; }
+  }
+
+  /* --- Erste Schritte (Gamification, leise Stufe) ------------------------ */
+
+  .schritte {
+    margin-bottom: var(--space-6);
+    padding: var(--space-5);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-l);
+    background: var(--surface-1);
+    box-shadow: var(--shadow-1);
+  }
+
+  .schritte h2 {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-3);
+    font-size: var(--fs-section);
+    font-weight: 650;
+  }
+
+  .schritte h2 small {
+    color: var(--text-muted);
+    font-size: var(--fs-meta);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .schritte ol {
+    display: grid;
+    gap: 2px;
+    margin: var(--space-3) 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .schritte li button {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    width: 100%;
+    min-height: var(--row-h);
+    padding: 0 var(--space-2);
+    border: 0;
+    border-radius: var(--radius-m);
+    background: none;
+    color: var(--text);
+    font: 500 var(--fs-ui)/1.3 var(--font);
+    text-align: left;
+    cursor: pointer;
+    transition: background var(--dur-1) var(--ease);
+  }
+
+  .schritte li button:hover {
+    background: color-mix(in oklab, var(--state) var(--state-hover), transparent);
+  }
+
+  .schritte li button::before {
+    content: '';
+    flex: none;
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--line-strong);
+    border-radius: 50%;
+    transition: all var(--dur-2) var(--ease-spring);
+  }
+
+  .schritte li[data-erledigt] button {
+    color: var(--text-muted);
+  }
+
+  .schritte li[data-erledigt] button span {
+    text-decoration: line-through;
+  }
+
+  .schritte li[data-erledigt] button::before {
+    border-color: var(--ok);
+    background: var(--ok) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M5 10l3 3 7-7' stroke='white' stroke-width='2.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/14px no-repeat;
+  }
+
+  /* --- Importfenster ----------------------------------------------------- */
+
+  /* In diesen Fenstern ist main direkt im Flussrahmen des Körpers: ohne
+     `width` zöge der automatische Rand die Spalte auf Inhaltsbreite zusammen. */
+  .import-body main,
+  .karte-body main {
+    width: 100%;
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: var(--space-6);
+  }
+
+  .karte-body main {
+    max-width: 640px;
+  }
+
+  .import-spalten {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+    gap: var(--space-4);
+    margin-bottom: var(--space-4);
+  }
+
+  .karte {
+    margin-bottom: var(--space-4);
+    padding: var(--space-5);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-l);
+    background: var(--surface-1);
+    box-shadow: var(--shadow-1);
+  }
+
+  .karte h2 {
+    margin-bottom: var(--space-3);
+    font-size: var(--fs-section);
+    font-weight: 650;
+  }
+
+  .karte-knoepfe {
+    margin: var(--space-4) 0 var(--space-2);
+  }
+
+  .import-optionen {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+/* --- Schmale Fenster ------------------------------------------------------ */
 
 @media (max-width: 900px) {
   .rahmen {
@@ -947,8 +1574,10 @@ legend {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: var(--s1);
-    padding: var(--s2);
+    gap: var(--space-1);
+    padding: var(--space-2) var(--space-3);
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
   }
 
   .nav-kicker {
@@ -957,322 +1586,32 @@ legend {
 
   .nav-knopf {
     width: auto;
-    border-left: 0;
-    border-bottom: 3px solid transparent;
-    padding: var(--s1) var(--s3);
-    font-size: 13px;
-  }
-
-  .nav-knopf.aktiv {
-    border-left: 0;
-    border-bottom-color: var(--offwhite);
+    min-height: 36px;
+    padding: 0 var(--space-3);
+    border-radius: var(--radius-full);
+    font-size: var(--fs-meta);
   }
 
   main {
-    padding: var(--s4);
+    padding: var(--space-5) var(--space-4) var(--space-12);
   }
 
   .projekte {
     grid-template-columns: 1fr;
   }
+
+  .kopf {
+    padding-left: 88px;
+  }
 }
 
 @media (max-width: 620px) {
-  .namen {
-    flex-direction: column;
-  }
-
+  .namen,
   .projekt-zeitraum {
     flex-direction: column;
   }
-}
 
-/* --- Importfenster ------------------------------------------------------- */
-
-.import-body main {
-  max-width: 1120px;
-  margin: 0 auto;
-}
-
-.import-spalten {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
-  gap: var(--s5);
-}
-
-.karte {
-  margin-bottom: var(--s5);
-  background: var(--flaeche);
-  border-top: 3px solid var(--linie-stark);
-  padding: var(--s4);
-}
-
-.karte h2 {
-  margin: 0 0 var(--s3);
-  color: var(--schiefer);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-}
-
-.geraete {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  margin: var(--s3) 0;
-  background: var(--linie);
-}
-
-.geraet {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  border: 0;
-  border-left: 3px solid transparent;
-  background: var(--grund);
-  padding: var(--s2) var(--s3);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition: background var(--dur) var(--ease);
-}
-
-.geraet:hover {
-  background: var(--eis);
-}
-
-.geraet.aktiv {
-  border-left-color: var(--navy);
-  background: var(--eis);
-}
-
-.geraet-name {
-  font-weight: 700;
-  font-size: 14px;
-}
-
-.geraet-info {
-  color: var(--text-still);
-  font-family: var(--mono);
-  font-size: 11.5px;
-}
-
-.werkzeug-hinweis .warn,
-.hinweis .warn {
-  color: var(--warn-text);
-  font-weight: 700;
-}
-
-.kat {
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.kat-neu {
-  color: var(--ok);
-}
-
-.kat-gleich {
-  color: var(--stahl);
-}
-
-.kat-anders {
-  color: var(--warn-text);
-}
-
-.spalte-kat {
-  width: 108px;
-}
-
-.import-tabelle {
-  max-height: 380px;
-  overflow-y: auto;
-}
-
-/* Die drei Kennzahlen des Vergleichs bekommen dieselbe Sprache wie die Status. */
-.zahlkachel-neu .zahl {
-  color: var(--ok);
-}
-
-.zahlkachel-gleich .zahl {
-  color: var(--stahl);
-}
-
-.zahlkachel-anders .zahl {
-  color: var(--warn-text);
-}
-
-/* --- Beispielbaum im Vorlagen-Editor ------------------------------------- */
-
-.probe {
-  max-height: 300px;
-  overflow: auto;
-  margin: 0 0 var(--s4);
-  padding: var(--s3);
-  background: var(--flaeche);
-  border-left: 3px solid var(--linie-stark);
-  font-family: var(--mono);
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--schiefer);
-}
-
-/* --- Sichern: Ziele, Aufträge, Kartenfenster ------------------------------ */
-
-/* Der Satz, auf den es am Drehtag ankommt: darf die Karte gelöscht werden? */
-.satz {
-  margin: 0 0 var(--s3);
-  padding: var(--s3) var(--s4);
-  border-left: 3px solid var(--linie-stark);
-  background: var(--flaeche);
-  font-size: 15px;
-  font-weight: 600;
-  line-height: 1.45;
-}
-
-.satz-warnung {
-  border-left-color: var(--warn);
-  background: var(--warn-flaeche);
-  color: var(--warn-text);
-}
-
-.satz-erfolg {
-  border-left-color: var(--ok);
-  background: var(--ok-flaeche);
-  color: var(--ok);
-}
-
-.satz-fehler {
-  border-left-color: var(--fehler);
-  background: var(--fehler-flaeche);
-  color: var(--fehler-text);
-}
-
-.zielkarte {
-  background: var(--flaeche);
-  border-left: 3px solid var(--linie-stark);
-  padding: var(--s3);
-  margin-bottom: var(--s2);
-}
-
-.zielkarte .pfad {
-  margin-top: var(--s2);
-}
-
-.pfad-klein {
-  display: block;
-  font-size: 11.5px;
-}
-
-.zielstand {
-  font-size: 12.5px;
-  white-space: nowrap;
-}
-
-.zielstand.gut,
-.zielzeile-stand.gut {
-  color: var(--ok);
-}
-
-.zielstand.warn,
-.zielzeile-stand.warn {
-  color: var(--warn-text);
-}
-
-.zielliste {
-  list-style: none;
-  margin: 0 0 var(--s3);
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  background: var(--linie);
-}
-
-.zielzeile {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--s2) var(--s3);
-  background: var(--grund);
-  padding: var(--s2) var(--s3);
-}
-
-.zielzeile-kopf {
-  display: flex;
-  align-items: baseline;
-  gap: var(--s2);
-  min-width: 0;
-}
-
-.zielzeile-name {
-  font-weight: 600;
-}
-
-.rolle {
-  padding: 1px var(--s2);
-  background: var(--eis);
-  color: var(--schiefer);
-  font-size: 11px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.zielzeile-stand {
-  font-size: 12.5px;
-  color: var(--text-still);
-}
-
-.auftraege {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s3);
-  margin-bottom: var(--s4);
-}
-
-.auftrag {
-  padding: var(--s3);
-  background: var(--flaeche);
-  border-left: 3px solid var(--linie-stark);
-}
-
-.auftrag-laeuft {
-  border-left-color: var(--warn);
-}
-
-.auftrag-fertig {
-  border-left-color: var(--ok);
-}
-
-.auftrag-fehler,
-.auftrag-abgebrochen {
-  border-left-color: var(--fehler);
-}
-
-.auftrag .satz {
-  margin-bottom: var(--s2);
-  padding: 0;
-  border: 0;
-  background: none;
-  font-size: 14px;
-}
-
-/* Das kleine Fenster beim Einstecken einer Karte. */
-.karte-body main {
-  max-width: 640px;
-  margin: 0 auto;
-}
-
-.karte-knoepfe {
-  margin: var(--s4) 0 var(--s2);
-}
-
-/* Ein Laufwerk, das nur zur Kenntnis dasteht (Systemplatte). */
-.geraet-still {
-  cursor: default;
-  color: var(--text-still);
+  .kacheln {
+    grid-template-columns: 1fr;
+  }
 }

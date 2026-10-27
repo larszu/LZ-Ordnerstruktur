@@ -93,11 +93,17 @@ async function init() {
     }]);
   });
 
+  // Der eigene Stand muss mitwandern: `merke` schreibt die ganzen
+  // Einstellungen zurück und würde sonst die alte Wahl wiederherstellen.
+  await themaStarten(info.einstellungen.thema, (wahl) => {
+    zustand.einstellungen.thema = wahl;
+  });
   verdrahteZiele();
   await ladeZiele();
   lz.aufAuftraege((stand) => {
     zustand.auftraege = stand;
     zeigeAuftraege();
+    zeichneSchritte();
   });
   // Die Menüleiste kann direkt in eine Ansicht springen.
   lz.aufAnsicht((name) => {
@@ -117,6 +123,54 @@ async function init() {
   }
 
   await aktualisiereStruktur();
+  zeichneSchritte();
+}
+
+// ---------------------------------------------------------------------------
+// Erste Schritte — leise Gamification: zeigt, was zum vollständigen Aufbau
+// noch fehlt, und führt mit einem Klick dorthin. Nichts davon blockiert etwas;
+// die Liste verschwindet, sobald alle vier Punkte stehen.
+// ---------------------------------------------------------------------------
+
+function schritte() {
+  const config = zustand.config || {};
+  const vorlage = zustand.vorlage;
+  const einBlockAn = Boolean(vorlage && vorlage.projekte.some((p) => config[p.key] && config[p.key].aktiv));
+  const zieleGenug = zustand.ziele.length >= 2;
+  const schonGesichert = Boolean(zustand.einstellungen.schonGesichert)
+    || (zustand.auftraege.alle || []).some((a) => a.formatieren);
+
+  return [
+    { text: 'Vorlage wählen und einen Block anhaken', erledigt: einBlockAn, ansicht: 'struktur' },
+    { text: 'Zielordner für die Struktur wählen', erledigt: Boolean(zustand.pfad), ansicht: 'struktur' },
+    { text: 'Zwei Sicherungsziele einrichten', erledigt: zieleGenug, ansicht: 'ziele' },
+    { text: 'Eine Karte sichern und prüfen lassen', erledigt: schonGesichert, ansicht: 'ziele' },
+  ];
+}
+
+function zeichneSchritte() {
+  const liste = schritte();
+  const fertig = liste.filter((s) => s.erledigt).length;
+  const box = $('schritte');
+  // Alles erledigt: Die Liste hat ihre Arbeit getan und geht weg.
+  box.hidden = fertig === liste.length;
+  if (box.hidden) return;
+
+  $('schritteStand').textContent = `${fertig} von ${liste.length}`;
+  const ol = $('schritteListe');
+  ol.textContent = '';
+  for (const schritt of liste) {
+    const li = document.createElement('li');
+    if (schritt.erledigt) li.dataset.erledigt = 'ja';
+    const knopf = document.createElement('button');
+    knopf.type = 'button';
+    const text = document.createElement('span');
+    text.textContent = schritt.text;
+    knopf.appendChild(text);
+    knopf.addEventListener('click', () => zeigeAnsicht(schritt.ansicht));
+    li.appendChild(knopf);
+    ol.appendChild(li);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1411,6 +1465,16 @@ function zeigeAuftraege() {
       stand.className = `zielzeile-stand ${z.status === 'fertig' ? 'gut' : (z.status === 'fehler' ? 'warn' : '')}`;
       stand.textContent = beschreibeZielstand(z, a.gesamt);
       li.append(kopf, stand);
+      // Während ein Ziel läuft, zeigt der Balken, wie weit es ist.
+      if (z.status === 'laeuft' && a.gesamt > 0) {
+        const balken = document.createElement('span');
+        balken.className = 'balken';
+        balken.style.flexBasis = '100%';
+        const fuellung = document.createElement('span');
+        fuellung.style.setProperty('--p', String(Math.min(1, (z.erledigt + z.uebersprungen) / a.gesamt)));
+        balken.appendChild(fuellung);
+        li.appendChild(balken);
+      }
       liste.appendChild(li);
     }
     box.appendChild(liste);

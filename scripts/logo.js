@@ -186,6 +186,25 @@ function alsIco(bilder) {
   return Buffer.concat([kopf, ...eintraege, ...bilder.map((b) => b.png)]);
 }
 
+/**
+ * Dasselbe Signet als SVG — für die Oberfläche. Die Wortmarke erbt die
+ * Textfarbe (`currentColor`), damit sie auf hellem wie dunklem Grund sitzt;
+ * der Tally-Punkt bleibt immer Signalrot. Eckig bleibt beides.
+ */
+function alsSvg() {
+  const pfadD = (pfade) => pfade
+    .map((punkte) => `M${punkte.map((p) => `${(p[0] - VIEW.x).toFixed(2)} ${(p[1] - VIEW.y).toFixed(2)}`).join('L')}Z`)
+    .join('');
+  const [wortmarke, , punkt] = [FORMEN[0], null, FORMEN[1]];
+  return [
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${VIEW.w.toFixed(2)} ${VIEW.h.toFixed(2)}" role="img">`,
+    `<path fill="currentColor" d="${pfadD(wortmarke.pfade)}"/>`,
+    `<path fill="#D6402E" d="${pfadD(punkt.pfade)}"/>`,
+    '</svg>',
+    '',
+  ].join('\n');
+}
+
 function schreibe(ziel, inhalt) {
   fs.mkdirSync(path.dirname(ziel), { recursive: true });
   fs.writeFileSync(ziel, inhalt);
@@ -199,7 +218,9 @@ function main() {
     path.join(wurzel, 'build', 'icon.ico'),
     alsIco([16, 24, 32, 48, 64, 128, 256].map((g) => ({ groesse: g, png: alsPng(zeichne(g, true), g) }))),
   );
-  // Für die Kopfzeile der App: Signet ohne Fläche, damit es auf Navy sitzt.
+  // Für die Kopfzeile der App: Signet als SVG, das die Textfarbe erbt.
+  schreibe(path.join(wurzel, 'src', 'renderer', 'signet.svg'), alsSvg());
+  // Das PNG bleibt für Stellen, die kein SVG annehmen.
   schreibe(path.join(wurzel, 'src', 'renderer', 'signet.png'), alsPng(zeichne(128, false), 128));
   // Als Projektlogo im README.
   schreibe(path.join(wurzel, 'resources', 'logo.png'), alsPng(zeichne(512, true), 512));
