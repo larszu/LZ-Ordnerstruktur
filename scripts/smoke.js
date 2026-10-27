@@ -560,6 +560,16 @@ app.whenReady().then(async () => {
     await screenshot(win, '11-kameras.png');
 
     console.log('\n· Doppelte Dateien');
+    // Endgültig löschen statt in den Papierkorb: Der Arbeitsordner liegt unter
+    // /tmp, und `gio` lehnt den Papierkorb auf solchen Einhängepunkten ab
+    // („Trashing on system internal mounts is not supported"). Geprüft werden
+    // soll hier die Aufräumlogik, nicht der Papierkorb des Laufwerks.
+    await imFenster(`(async () => {
+      const box = document.getElementById('optPapierkorb');
+      box.checked = false;
+      box.dispatchEvent(new Event('change', { bubbles: true }));
+      await new Promise((r) => setTimeout(r, 500));
+    })()`);
     const doppelt = path.join(arbeitsordner, 'doppelt');
     fs.mkdirSync(path.join(doppelt, 'unten'), { recursive: true });
     fs.writeFileSync(path.join(doppelt, 'brief.txt'), 'derselbe Inhalt');
