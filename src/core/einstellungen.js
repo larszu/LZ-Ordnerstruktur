@@ -13,6 +13,7 @@ const fs = require('fs');
 const path = require('path');
 const { STANDARD_GRUPPEN, normalisiereGruppen } = require('./sachgruppen');
 const { normalisiereKameras } = require('./kameras');
+const { normalisiereZiele } = require('./ziele');
 
 const DATEI = 'einstellungen.json';
 
@@ -47,6 +48,23 @@ function standard() {
     kameras: [],
     // Was beim Import in die Kopien geschrieben wird
     metadaten: { urheber: '', rechte: '', stichworte: '', gpsEntfernen: false },
+    // Sicherungsziele: wohin eine Karte kopiert wird, mit Rolle
+    ziele: [],
+    // Menüleiste und Kartenwache
+    wache: {
+      // Symbol in der Menüleiste zeigen und beim Einstecken fragen
+      aktiv: true,
+      // Nur Karten mit DCIM-Ordner melden — nicht jeden USB-Stick
+      nurKameras: true,
+      // Sofort sichern, ohne nachzufragen
+      sofort: false,
+      // Takt der Nachschau in Sekunden
+      takt: 4,
+      // Datenträger, bei denen nicht mehr gefragt wird
+      ignoriert: [],
+    },
+    // Womit eine Karte aus der Menüleiste gesichert wird (Schema und Auswahl)
+    sicherung: { schema: 'datum', unterordner: '', umbenennen: false, methode: 'zeitgroesse' },
   };
 }
 
@@ -65,6 +83,11 @@ function lade(userDir) {
   werte.kameras = normalisiereKameras(werte.kameras);
   werte.aufraeumKategorien = { ...standard().aufraeumKategorien, ...(werte.aufraeumKategorien || {}) };
   werte.metadaten = { ...standard().metadaten, ...(werte.metadaten || {}) };
+  werte.wache = { ...standard().wache, ...(werte.wache || {}) };
+  werte.wache.ignoriert = Array.isArray(werte.wache.ignoriert) ? werte.wache.ignoriert.map(String) : [];
+  werte.wache.takt = Math.min(60, Math.max(2, Number(werte.wache.takt) || 4));
+  werte.sicherung = { ...standard().sicherung, ...(werte.sicherung || {}) };
+  werte.ziele = normalisiereZiele(werte.ziele);
   return werte;
 }
 
@@ -73,6 +96,8 @@ function speichere(userDir, aenderungen) {
   const werte = { ...lade(userDir), ...(aenderungen || {}) };
   werte.gruppen = normalisiereGruppen(werte.gruppen);
   werte.kameras = normalisiereKameras(werte.kameras);
+  werte.ziele = normalisiereZiele(werte.ziele);
+  werte.wache = { ...standard().wache, ...(werte.wache || {}) };
   try {
     fs.mkdirSync(userDir, { recursive: true });
     fs.writeFileSync(path.join(userDir, DATEI), `${JSON.stringify(werte, null, 2)}\n`, 'utf8');

@@ -342,6 +342,75 @@ async function runImport({ plan, zielBasis, verschieben = false, methode = 'zeit
   };
 }
 
+
+// ---- Prüfen und mehrere Ziele ----------------------------------------------
+
+/**
+ * Prüft, welche Dateien eines Plans auf einem Ziel schon liegen — ohne etwas zu
+ * verändern. Erst diese Prüfung darf den Satz „die Karte kann formatiert
+ * werden" auslösen; ein Fortschrittsbalken, der durchgelaufen ist, darf es
+ * nicht.
+ *
+ * Gesucht wird der direkte Zielname und die durchnummerierten Varianten
+ * (`name_1.jpg`), weil {@link freierName} beim Kopieren so ausweicht.
+ *
+ * @param {object} args
+ * @param {object[]} args.plan
+ * @param {string}   args.zielBasis
+ * @param {string}   [args.methode='inhalt']  Vergleich; beim Prüfen ist die
+ *   Prüfsumme der Standard — hier geht es um Gewissheit, nicht um Tempo.
+ * @returns {Promise<{gesamt: number, vorhanden: number, fehlend: number, fehlendeNamen: string[]}>}
+ */
+async function pruefeZiel({ plan = [], zielBasis, methode = 'inhalt', melde, sollAbbrechen } = {}) {
+  let vorhanden = 0;
+  const fehlendeNamen = [];
+  if (!zielBasis) {
+    return { gesamt: plan.length, vorhanden: 0, fehlend: plan.length, fehlendeNamen: plan.slice(0, 40).map((s) => path.basename(s.von)) };
+  }
+  let i = 0;
+  for (const s of plan) {
+    if (sollAbbrechen && sollAbbrechen()) break;
+    const ordner = path.join(zielBasis, ...s.zielRel.split('/'));
+    const ext = path.extname(s.zielName);
+    const stamm = path.basename(s.zielName, ext);
+    let gefunden = false;
+    for (let n = 0; n < 50; n += 1) {
+      const kandidat = path.join(ordner, n === 0 ? s.zielName : `${stamm}_${n}${ext}`);
+      // Fehlt schon der direkte Name, liegt die Datei gar nicht am Ziel —
+      // durchnummeriert wird nur, wenn der Name besetzt war.
+      if (!fs.existsSync(kandidat)) break;
+      if (sindGleich(s.von, kandidat, methode)) {
+        gefunden = true;
+        break;
+      }
+    }
+    if (gefunden) vorhanden += 1;
+    else fehlendeNamen.push(path.basename(s.von));
+    i += 1;
+    if (i % 100 === 0) melde && melde(`geprüft: ${i} / ${plan.length}`);
+  }
+  return {
+    gesamt: plan.length,
+    vorhanden,
+    fehlend: plan.length - vorhanden,
+    fehlendeNamen: fehlendeNamen.slice(0, 40),
+  };
+}
+
+/**
+ * Kopiert einen Plan auf ein Ziel und prüft danach nach. Rückgabe wie
+ * {@link runImport}, ergänzt um das Prüfergebnis.
+ *
+ * Verschoben wird hier nie: bei mehreren Zielen wäre die Karte nach dem ersten
+ * Ziel leer und das zweite bekäme nichts mehr.
+ */
+async function sichereAufZiel({ plan, zielBasis, methode = 'zeitgroesse', melde, sollAbbrechen, metadatenWunsch }) {
+  const lauf = await runImport({ plan, zielBasis, verschieben: false, methode, melde, sollAbbrechen, metadatenWunsch });
+  melde && melde('Prüfe die Kopien gegen die Karte …');
+  const pruefung = await pruefeZiel({ plan, zielBasis, methode: 'inhalt', melde, sollAbbrechen });
+  return { ...lauf, pruefung, geprueft: pruefung.vorhanden, fehlend: pruefung.fehlend };
+}
+
 module.exports = {
   BILD,
   VIDEO,
@@ -351,6 +420,8 @@ module.exports = {
   scanImport,
   vergleicheImport,
   runImport,
+  pruefeZiel,
+  sichereAufZiel,
   freierName,
   sindGleich,
   VERGLEICH_METHODEN,

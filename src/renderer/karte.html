@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:" />
+    <title>Karte gesteckt</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="karte-body">
+    <header class="kopf">
+      <img class="kopf-signet" src="signet.png" alt="Lars Zumpe Medienproduktion" width="34" height="34" />
+      <div class="kopf-titel">
+        <h1 id="titel">Karte gesteckt</h1>
+        <p id="untertitel">Wird eingelesen …</p>
+      </div>
+    </header>
+
+    <main>
+      <p class="satz" id="satz" role="status" aria-live="polite">Dateien werden gezählt …</p>
+      <p class="hinweis" id="fortschritt"></p>
+
+      <section class="karte">
+        <h2>Ziele</h2>
+        <ul class="zielliste" id="zielliste"></ul>
+        <p class="hinweis" id="zielHinweis"></p>
+        <button type="button" class="knopf knopf-still knopf-klein" id="btnZieleEinrichten">Ziele einrichten …</button>
+      </section>
+
+      <section class="karte">
+        <label class="feld">
+          <span>Ordner auf den Zielen (frei lassen für den Datumsbaum)</span>
+          <input type="text" id="unterordner" placeholder="z. B. Hochzeit Müller" />
+        </label>
+        <label class="schalter"><input type="checkbox" id="umbenennen" /> Nach Aufnahmezeit umbenennen</label>
+      </section>
+
+      <div class="zeile zeile-umbruch karte-knoepfe">
+        <button type="button" class="knopf knopf-primaer" id="btnSichern" disabled>Auf alle Ziele sichern</button>
+        <button type="button" class="knopf knopf-still" id="btnPruefen">Erneut prüfen</button>
+        <button type="button" class="knopf knopf-still" id="btnImport">Importfenster …</button>
+        <button type="button" class="knopf knopf-still" id="btnSpaeter">Später</button>
+      </div>
+      <label class="schalter"><input type="checkbox" id="nieWieder" /> Diesen Datenträger nicht mehr melden</label>
+      <p class="hinweis">Das Kopieren läuft im Hintergrund weiter — dieses Fenster darf zu. Der Stand steht in der Menüleiste.</p>
+    </main>
+
+    <script src="karte.js"></script>
+  </body>
+</html>

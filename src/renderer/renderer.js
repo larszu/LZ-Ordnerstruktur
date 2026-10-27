@@ -22,6 +22,10 @@ const zustand = {
   gruppen: [],
   aufraeumKategorien: {},
   kameras: [],
+  ziele: [],
+  rollen: [],
+  wache: {},
+  auftraege: { aktiv: [], erledigt: [], alle: [] },
 };
 
 const $ = (id) => document.getElementById(id);
@@ -89,6 +93,18 @@ async function init() {
     }]);
   });
 
+  verdrahteZiele();
+  await ladeZiele();
+  lz.aufAuftraege((stand) => {
+    zustand.auftraege = stand;
+    zeigeAuftraege();
+  });
+  // Die Menüleiste kann direkt in eine Ansicht springen.
+  lz.aufAnsicht((name) => {
+    zeigeAnsicht(name);
+    if (name === 'ziele') ladeZiele();
+  });
+
   lz.onMenu('menu:save', speichernAlsDatei);
   lz.onMenu('menu:load', ladenAusDatei);
   lz.onMenu('menu:import', importFensterOeffnen);
@@ -119,6 +135,7 @@ function zeigeAnsicht(name) {
   for (const ansicht of $$('.ansicht')) ansicht.classList.toggle('aktiv', ansicht.id === `ansicht-${name}`);
   document.querySelector('main').scrollTop = 0;
   if (name === 'vorlagen') oeffneEditor();
+  if (name === 'ziele') ladeZiele();
 }
 
 // ---------------------------------------------------------------------------
@@ -1135,6 +1152,293 @@ function baueGruppenListe() {
     );
     ziel.appendChild(zeile);
   });
+}
+
+
+// ---------------------------------------------------------------------------
+// Sichern & Ziele: mehrere Ziele je Karte, Aufträge im Hintergrund
+// ---------------------------------------------------------------------------
+
+function verdrahteZiele() {
+  $('btnZielOrdnerWaehlen').addEventListener('click', async () => {
+    const antwort = await lz.zielHinzufuegen(null);
+    if (antwort && antwort.ok) await ladeZiele();
+    else if (antwort && antwort.fehler) $('zieleHinweis').textContent = antwort.fehler;
+  });
+  $('btnLaufwerkeAktualisieren').addEventListener('click', ladeZiele);
+  $('btnAuftraegeAufraeumen').addEventListener('click', async () => {
+    zustand.auftraege = await lz.auftraegeAufraeumen();
+    zeigeAuftraege();
+  });
+
+  for (const [id, feld] of [['wacheAktiv', 'aktiv'], ['wacheNurKameras', 'nurKameras'], ['wacheSofort', 'sofort']]) {
+    $(id).addEventListener('change', async () => {
+      const antwort = await lz.wacheSetzen({ [feld]: $(id).checked });
+      zustand.wache = antwort.wache;
+    });
+  }
+  $('wacheTakt').addEventListener('change', async () => {
+    const antwort = await lz.wacheSetzen({ takt: Number($('wacheTakt').value) || 4 });
+    zustand.wache = antwort.wache;
+    $('wacheTakt').value = String(antwort.wache.takt);
+  });
+}
+
+async function ladeZiele() {
+  const stand = await lz.zieleStand();
+  zustand.ziele = stand.ziele;
+  zustand.rollen = stand.rollen;
+  zustand.wache = stand.wache;
+  $('wacheAktiv').checked = Boolean(stand.wache.aktiv);
+  $('wacheNurKameras').checked = Boolean(stand.wache.nurKameras);
+  $('wacheSofort').checked = Boolean(stand.wache.sofort);
+  $('wacheTakt').value = String(stand.wache.takt);
+  $('zieleHinweis').textContent = stand.aufstellung.hinweis;
+  baueZieleListe();
+  zeigeLaufwerke(stand.laufwerke, stand.ziele);
+  zeigeKarten(stand.karten);
+  zustand.auftraege = await lz.auftraegeStand();
+  zeigeAuftraege();
+}
+
+function baueZieleListe() {
+  const ziel = $('zieleListe');
+  ziel.textContent = '';
+  if (zustand.ziele.length === 0) {
+    const leer = document.createElement('p');
+    leer.className = 'hinweis';
+    leer.textContent = 'Noch kein Ziel eingerichtet. Unten ein Laufwerk anklicken oder einen Ordner wählen — '
+      + 'das erste Ziel ist das Arbeitslaufwerk, jedes weitere eine Sicherung.';
+    ziel.appendChild(leer);
+    return;
+  }
+
+  for (const z of zustand.ziele) {
+    const name = document.createElement('label');
+    name.className = 'feld feld-breit';
+    const nText = document.createElement('span');
+    nText.textContent = 'Name';
+    const nWert = document.createElement('input');
+    nWert.type = 'text';
+    nWert.value = z.name;
+    nWert.addEventListener('change', async () => {
+      await lz.zielAendern(z.pfad, { name: nWert.value.trim() || z.name });
+      await ladeZiele();
+    });
+    name.append(nText, nWert);
+
+    const rolle = document.createElement('label');
+    rolle.className = 'feld feld-schmal';
+    const rText = document.createElement('span');
+    rText.textContent = 'Rolle';
+    const rWahl = document.createElement('select');
+    for (const r of zustand.rollen) {
+      const opt = document.createElement('option');
+      opt.value = r.key;
+      opt.textContent = r.label;
+      rWahl.appendChild(opt);
+    }
+    rWahl.value = z.rolle;
+    rWahl.addEventListener('change', async () => {
+      await lz.zielAendern(z.pfad, { rolle: rWahl.value });
+      await ladeZiele();
+    });
+    rolle.append(rText, rWahl);
+
+    const mit = document.createElement('label');
+    mit.className = 'schalter';
+    const mWert = document.createElement('input');
+    mWert.type = 'checkbox';
+    mWert.checked = z.aktiv;
+    mWert.addEventListener('change', async () => {
+      await lz.zielAendern(z.pfad, { aktiv: mWert.checked });
+      await ladeZiele();
+    });
+    mit.append(mWert, document.createTextNode(' sichern'));
+
+    const stand = document.createElement('span');
+    stand.className = z.angeschlossen ? 'zielstand gut' : 'zielstand warn';
+    stand.textContent = z.angeschlossen
+      ? `angeschlossen · ${lesbar(z.frei)} frei`
+      : 'nicht angeschlossen';
+
+    const pfad = document.createElement('code');
+    pfad.className = 'pfad pfad-klein';
+    pfad.textContent = z.pfad;
+
+    const weg = document.createElement('button');
+    weg.type = 'button';
+    weg.className = 'knopf knopf-klein knopf-still';
+    weg.textContent = 'Entfernen';
+    weg.addEventListener('click', async () => {
+      await lz.zielEntfernen(z.pfad);
+      await ladeZiele();
+    });
+
+    const zeile = document.createElement('div');
+    zeile.className = 'editorzeile';
+    zeile.append(name, rolle, mit, stand, weg);
+
+    const umschlag = document.createElement('div');
+    umschlag.className = 'zielkarte';
+    umschlag.append(zeile, pfad);
+    ziel.appendChild(umschlag);
+  }
+}
+
+/** Bytes lesbar — dieselbe Schreibweise wie im Kern (ziele.js). */
+function lesbar(bytes) {
+  if (bytes === null || bytes === undefined) return '—';
+  const einheiten = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let wert = Number(bytes);
+  let i = 0;
+  while (wert >= 1024 && i < einheiten.length - 1) {
+    wert /= 1024;
+    i += 1;
+  }
+  return `${wert.toFixed(wert < 10 && i > 0 ? 1 : 0).replace('.', ',')} ${einheiten[i]}`;
+}
+
+function zeigeLaufwerke(laufwerke, zieleListe) {
+  const ziel = $('laufwerkeListe');
+  ziel.textContent = '';
+  const schon = new Set(zieleListe.map((z) => z.pfad));
+  const uebrig = laufwerke.filter((l) => !schon.has(l.pfad));
+  if (uebrig.length === 0) {
+    const p = document.createElement('p');
+    p.className = 'hinweis';
+    p.textContent = 'Keine weiteren Laufwerke gefunden.';
+    ziel.appendChild(p);
+    return;
+  }
+  for (const l of uebrig) {
+    // Das Startvolume steht nur zur Kenntnis da: eine Sicherung in die Wurzel
+    // der Systemplatte wäre keine. Wer das wirklich will, wählt einen Ordner.
+    const karte = document.createElement(l.start ? 'div' : 'button');
+    karte.className = l.start ? 'geraet geraet-still' : 'geraet';
+    if (!l.start) karte.type = 'button';
+    const name = document.createElement('span');
+    name.className = 'geraet-name';
+    name.textContent = l.name;
+    const info = document.createElement('span');
+    info.className = 'geraet-info';
+    info.textContent = [
+      l.kamera ? 'Kamera / SD-Karte' : (l.start ? 'Systemplatte' : 'Laufwerk'),
+      l.frei === null ? '' : `${lesbar(l.frei)} frei`,
+      l.start ? 'kein Ziel — dafür einen Ordner wählen' : 'als Ziel übernehmen',
+    ].filter(Boolean).join(' · ');
+    karte.append(name, info);
+    if (!l.start) {
+      karte.addEventListener('click', async () => {
+        const antwort = await lz.zielHinzufuegen({ pfad: l.pfad, name: l.name });
+        if (antwort && antwort.fehler) $('zieleHinweis').textContent = antwort.fehler;
+        await ladeZiele();
+      });
+    }
+    ziel.appendChild(karte);
+  }
+}
+
+function zeigeKarten(karten) {
+  const ziel = $('kartenListe');
+  ziel.textContent = '';
+  if (!karten.length) {
+    const p = document.createElement('p');
+    p.className = 'hinweis';
+    p.textContent = 'Keine Karte gesteckt.';
+    ziel.appendChild(p);
+    return;
+  }
+  for (const k of karten) {
+    const karte = document.createElement('button');
+    karte.type = 'button';
+    karte.className = 'geraet';
+    const name = document.createElement('span');
+    name.className = 'geraet-name';
+    name.textContent = k.name;
+    const info = document.createElement('span');
+    info.className = 'geraet-info';
+    info.textContent = k.kamera ? 'Kamera / SD-Karte · prüfen und sichern' : 'Datenträger · prüfen und sichern';
+    karte.append(name, info);
+    karte.addEventListener('click', () => lz.karteOeffnen(k.pfad));
+    ziel.appendChild(karte);
+  }
+}
+
+function zeigeAuftraege() {
+  const ziel = $('auftragsListe');
+  ziel.textContent = '';
+  const alle = zustand.auftraege.alle || [];
+  if (alle.length === 0) {
+    const p = document.createElement('p');
+    p.className = 'hinweis';
+    p.textContent = 'Kein Auftrag. Eine gesteckte Karte oben anklicken — das Kopieren läuft dann im '
+      + 'Hintergrund weiter, auch wenn dieses Fenster zu ist.';
+    ziel.appendChild(p);
+    return;
+  }
+  for (const a of alle) {
+    const box = document.createElement('div');
+    box.className = `auftrag auftrag-${a.status}`;
+
+    const satz = document.createElement('p');
+    satz.className = `satz satz-${a.satzArt}`;
+    satz.textContent = a.satz;
+    box.appendChild(satz);
+
+    if (a.text) {
+      const text = document.createElement('p');
+      text.className = 'hinweis';
+      text.textContent = a.text;
+      box.appendChild(text);
+    }
+
+    const liste = document.createElement('ul');
+    liste.className = 'zielliste';
+    for (const z of a.ziele) {
+      const li = document.createElement('li');
+      li.className = 'zielzeile';
+      const kopf = document.createElement('div');
+      kopf.className = 'zielzeile-kopf';
+      const name = document.createElement('span');
+      name.className = 'zielzeile-name';
+      name.textContent = z.name;
+      const rolle = document.createElement('span');
+      rolle.className = 'rolle';
+      rolle.textContent = z.rolleLabel;
+      kopf.append(name, rolle);
+      const stand = document.createElement('span');
+      stand.className = `zielzeile-stand ${z.status === 'fertig' ? 'gut' : (z.status === 'fehler' ? 'warn' : '')}`;
+      stand.textContent = beschreibeZielstand(z, a.gesamt);
+      li.append(kopf, stand);
+      liste.appendChild(li);
+    }
+    box.appendChild(liste);
+
+    if (a.status === 'laeuft' || a.status === 'wartet') {
+      const stopp = document.createElement('button');
+      stopp.type = 'button';
+      stopp.className = 'knopf knopf-klein knopf-still';
+      stopp.textContent = 'Abbrechen';
+      stopp.addEventListener('click', async () => {
+        zustand.auftraege = await lz.auftragAbbrechen(a.id);
+        zeigeAuftraege();
+      });
+      box.appendChild(stopp);
+    }
+    ziel.appendChild(box);
+  }
+}
+
+function beschreibeZielstand(z, gesamt) {
+  if (z.status === 'wartet') return 'wartet';
+  if (z.status === 'laeuft') return `kopiert … ${zahl(z.erledigt)} von ${zahl(gesamt)}`;
+  if (z.status === 'fertig') {
+    return `${zahl(z.geprueft)} von ${zahl(gesamt)} geprüft`
+      + (z.uebersprungen ? ` · ${zahl(z.uebersprungen)} lagen schon hier` : '');
+  }
+  if (z.fehler && z.fehler.length) return `Fehler: ${z.fehler[0].grund}`;
+  return z.fehlend ? `${zahl(z.fehlend)} fehlen noch` : 'nicht fertig';
 }
 
 // ---------------------------------------------------------------------------

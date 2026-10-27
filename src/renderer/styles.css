@@ -1119,3 +1119,160 @@ legend {
   line-height: 1.5;
   color: var(--schiefer);
 }
+
+/* --- Sichern: Ziele, Aufträge, Kartenfenster ------------------------------ */
+
+/* Der Satz, auf den es am Drehtag ankommt: darf die Karte gelöscht werden? */
+.satz {
+  margin: 0 0 var(--s3);
+  padding: var(--s3) var(--s4);
+  border-left: 3px solid var(--linie-stark);
+  background: var(--flaeche);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.satz-warnung {
+  border-left-color: var(--warn);
+  background: var(--warn-flaeche);
+  color: var(--warn-text);
+}
+
+.satz-erfolg {
+  border-left-color: var(--ok);
+  background: var(--ok-flaeche);
+  color: var(--ok);
+}
+
+.satz-fehler {
+  border-left-color: var(--fehler);
+  background: var(--fehler-flaeche);
+  color: var(--fehler-text);
+}
+
+.zielkarte {
+  background: var(--flaeche);
+  border-left: 3px solid var(--linie-stark);
+  padding: var(--s3);
+  margin-bottom: var(--s2);
+}
+
+.zielkarte .pfad {
+  margin-top: var(--s2);
+}
+
+.pfad-klein {
+  display: block;
+  font-size: 11.5px;
+}
+
+.zielstand {
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+.zielstand.gut,
+.zielzeile-stand.gut {
+  color: var(--ok);
+}
+
+.zielstand.warn,
+.zielzeile-stand.warn {
+  color: var(--warn-text);
+}
+
+.zielliste {
+  list-style: none;
+  margin: 0 0 var(--s3);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--linie);
+}
+
+.zielzeile {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s2) var(--s3);
+  background: var(--grund);
+  padding: var(--s2) var(--s3);
+}
+
+.zielzeile-kopf {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s2);
+  min-width: 0;
+}
+
+.zielzeile-name {
+  font-weight: 600;
+}
+
+.rolle {
+  padding: 1px var(--s2);
+  background: var(--eis);
+  color: var(--schiefer);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.zielzeile-stand {
+  font-size: 12.5px;
+  color: var(--text-still);
+}
+
+.auftraege {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  margin-bottom: var(--s4);
+}
+
+.auftrag {
+  padding: var(--s3);
+  background: var(--flaeche);
+  border-left: 3px solid var(--linie-stark);
+}
+
+.auftrag-laeuft {
+  border-left-color: var(--warn);
+}
+
+.auftrag-fertig {
+  border-left-color: var(--ok);
+}
+
+.auftrag-fehler,
+.auftrag-abgebrochen {
+  border-left-color: var(--fehler);
+}
+
+.auftrag .satz {
+  margin-bottom: var(--s2);
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 14px;
+}
+
+/* Das kleine Fenster beim Einstecken einer Karte. */
+.karte-body main {
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.karte-knoepfe {
+  margin: var(--s4) 0 var(--s2);
+}
+
+/* Ein Laufwerk, das nur zur Kenntnis dasteht (Systemplatte). */
+.geraet-still {
+  cursor: default;
+  color: var(--text-still);
+}

@@ -9,7 +9,8 @@
  *
  *   node scripts/logo.js
  *
- * schreibt build/icon.png (1024), build/icon.ico und src/renderer/signet.png.
+ * schreibt build/icon.png (1024), build/icon.ico, src/renderer/signet.png und
+ * die Symbole für die Menüleiste (src/renderer/tray*.png).
  */
 
 const fs = require('fs');
@@ -22,6 +23,7 @@ const VIEW = { x: 429.599, y: 359.954, w: 331.107, h: 331.107 };
 const NAVY = [0x1d, 0x32, 0x4f];
 const OFFWHITE = [0xf6, 0xf5, 0xf0];
 const TALLY = [0xd6, 0x40, 0x2e];
+const SCHWARZ = [0x00, 0x00, 0x00];
 
 /** Die Wortmarke „lz" und der Tally-Punkt, exakt wie im Kit. */
 const FORMEN = [
@@ -46,8 +48,10 @@ const FORMEN = [
  * Zeichnet das Symbol in einen RGBA-Puffer.
  * @param {number} groesse Kantenlänge in Pixeln
  * @param {boolean} mitFlaeche Navy-Fläche darunter (Programmsymbol) oder frei (Signet)
+ * @param {number[]} [einfarbig] Alle Formen in dieser Farbe — für das
+ *   Menüleisten-Symbol, das macOS selbst hell oder dunkel einfärbt.
  */
-function zeichne(groesse, mitFlaeche) {
+function zeichne(groesse, mitFlaeche, einfarbig) {
   const ss = 4; // vierfach überabgetastet — die schrägen Kanten bleiben sauber
   const n = groesse * ss;
   const skala = n / VIEW.w;
@@ -102,10 +106,11 @@ function zeichne(groesse, mitFlaeche) {
     FORMEN.forEach((form, fi) => {
       const d = Math.min(1, deckung[fi][i]);
       if (d <= 0) return;
+      const farbe = einfarbig || form.farbe;
       const neuA = d + a * (1 - d);
-      r = (form.farbe[0] * d + r * a * (1 - d)) / neuA;
-      g = (form.farbe[1] * d + g * a * (1 - d)) / neuA;
-      b = (form.farbe[2] * d + b * a * (1 - d)) / neuA;
+      r = (farbe[0] * d + r * a * (1 - d)) / neuA;
+      g = (farbe[1] * d + g * a * (1 - d)) / neuA;
+      b = (farbe[2] * d + b * a * (1 - d)) / neuA;
       a = neuA;
     });
     daten[i * 4] = Math.round(r);
@@ -198,6 +203,13 @@ function main() {
   schreibe(path.join(wurzel, 'src', 'renderer', 'signet.png'), alsPng(zeichne(128, false), 128));
   // Als Projektlogo im README.
   schreibe(path.join(wurzel, 'resources', 'logo.png'), alsPng(zeichne(512, true), 512));
+  // Menüleiste: macOS färbt ein „Template"-Bild selbst ein, deshalb schwarz auf
+  // frei. 16 px und 32 px für normale und Retina-Auflösung.
+  const renderer = path.join(wurzel, 'src', 'renderer');
+  schreibe(path.join(renderer, 'trayTemplate.png'), alsPng(zeichne(16, false, SCHWARZ), 16));
+  schreibe(path.join(renderer, 'trayTemplate@2x.png'), alsPng(zeichne(32, false, SCHWARZ), 32));
+  // Windows und Linux färben nichts ein — dort das Symbol mit Navy-Fläche.
+  schreibe(path.join(renderer, 'tray.png'), alsPng(zeichne(32, true), 32));
 }
 
 if (require.main === module) main();

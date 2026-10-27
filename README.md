@@ -10,6 +10,9 @@ Internet. Es
   Urlaub oder das private Archiv,
 * **liest Fotos und Videos von Kamera oder SD-Karte ein** — vergleichen,
   dann nur das Fehlende kopieren,
+* **sichert Speicherkarten auf mehrere Ziele** — im Hintergrund, über das
+  Symbol in der Menüleiste, und sagt erst dann, dass die Karte gelöscht werden
+  darf, wenn jedes Ziel nachgeprüft ist,
 * **sortiert vorhandene Dateien ein** — Fotos nach Aufnahmedatum, Dokumente
   nach Inhalt,
 * **räumt auf** — doppelte Dateien, Album-Cover, App-Icons, leere Dateien.
@@ -30,8 +33,8 @@ jetzt in einer App.
 | Die Vorlage in der Oberfläche ändern | … und sofort sehen, was dabei herauskommt |
 | ![Fotos einsortieren](docs/screenshots/08-fotos.png) | ![Überflüssiges entfernen](docs/screenshots/09-aufraeumen.png) |
 | Fotos nach Aufnahmedatum einsortieren | Aufräumen, Kategorie für Kategorie |
-| ![Kameras](docs/screenshots/11-kameras.png) | |
-| Kameras zuordnen, Uhrzeit geraderücken, GPS entfernen | |
+| ![Kameras](docs/screenshots/11-kameras.png) | ![Sichern und Ziele](docs/screenshots/12-ziele.png) |
+| Kameras zuordnen, Uhrzeit geraderücken, GPS entfernen | Ziele mit Rolle — Arbeitslaufwerk, Sicherung, Archiv |
 | ![Ordnerstruktur angelegt](docs/screenshots/03-erstellt.png) | ![Lightroom-Vorgaben](docs/screenshots/04-vorgaben.png) |
 | Angelegt — Vorschau und Ergebnis stimmen überein | Verwaltung der Lightroom-Vorgaben |
 
@@ -45,6 +48,11 @@ Kartenleser oder SD-Karte in die richtigen Ordner — es erkennt den Datenträge
 **vergleicht zuerst** mit dem Ziel (wie FreeFileSync) und kopiert dann nur, was fehlt:
 
 <img src="docs/screenshots/06-import.png" alt="Importfenster" width="640">
+
+Steckt eine Karte, meldet sich die App **von selbst** — mit dem einen Satz, auf
+den es am Drehtag ankommt:
+
+<img src="docs/screenshots/13-karte-gesteckt.png" alt="Karte gesteckt" width="420">
 
 Die Bilder entstehen beim Headless-Durchlauf (`npm run smoke`) und sind damit immer
 der tatsächliche Stand der App.
@@ -479,6 +487,66 @@ Es gelten dieselben Sicherheitsprinzipien wie überall, plus:
 Videos aus QuickTime (`.mov`, `.mp4`) werden mit `-api QuickTimeUTC` von UTC auf die
 lokale Zeit umgerechnet, damit sie im richtigen Tagesordner landen.
 
+## Karten sichern: mehrere Ziele, im Hintergrund
+
+Am Drehtag gilt eine Regel: **zwei Kopien, bevor die Karte gelöscht wird.**
+Dafür gibt es die Ansicht *Sichern & Ziele* und das Symbol in der Menüleiste
+(macOS oben neben der Uhr, Windows im Infobereich).
+
+### Ziele einrichten
+
+Jedes Ziel ist ein Laufwerk oder Ordner mit **Namen und Rolle**:
+
+| Rolle | Wofür |
+| --- | --- |
+| **Arbeitslaufwerk** | Hier wird geschnitten — die erste Kopie. |
+| **Sicherung** | Die zweite Kopie. Erst wenn sie steht, darf die Karte gelöscht werden. |
+| **Archiv** | Langfristige Ablage, oft erst später angeschlossen. |
+
+Die App listet alle angeschlossenen Laufwerke mit freiem Platz; ein Klick macht
+eins davon zum Ziel. Jedes Ziel zeigt, ob es gerade angeschlossen ist — eine
+Sicherungsplatte, die zu Hause liegt, fällt so auf, bevor kopiert wird und nicht
+danach. Höchstens sechs Ziele werden verwaltet.
+
+### Was beim Einstecken passiert
+
+1. Die Karte wird erkannt (an ihrem `DCIM`-Ordner), ein kleines Fenster geht auf.
+2. Es zählt die Aufnahmen und prüft jedes angeschlossene Ziel: liegt die Datei
+   dort schon?
+3. Der Satz oben sagt das Ergebnis — **„148 von 148 Dateien sind noch nicht auf
+   T7 Shield und Archiv — nicht formatieren."** oder **„… geprüft — die Karte
+   kann formatiert werden."**
+4. Ein Klick stellt den Sicherungsauftrag ein. **Das Fenster darf danach zu.**
+
+Wer nicht gefragt werden will, stellt *Ohne Rückfrage sofort sichern* ein; wer
+gar kein Symbol in der Menüleiste möchte, schaltet die Kartenwache ab. Ein
+einzelner Datenträger lässt sich auch dauerhaft stummschalten.
+
+### Der Hintergrundauftrag
+
+* **Mehrere Ziele je Karte** — kopiert wird nacheinander, Ziel für Ziel.
+* **Mehrere Karten hintereinander** — jede weitere Karte reiht sich ein.
+* **Verschoben wird nie.** Bei mehreren Zielen wäre die Karte nach dem ersten
+  Ziel leer und das zweite bekäme nichts mehr.
+* **Nachgeprüft wird jedes Ziel einzeln**, nach dem Kopieren, über die
+  Prüfsumme. Ein durchgelaufener Fortschrittsbalken ist kein Nachweis.
+* **Fertig heißt fertig.** Der Satz „die Karte kann formatiert werden" erscheint
+  erst, wenn *jedes* Ziel vollständig geprüft ist. Fehlt auf einem Ziel etwas
+  oder ist ein Fehler aufgetreten, bleibt die Karte gesperrt — und das geprüfte
+  Ziel bleibt trotzdem gültig.
+* **Abbrechen jederzeit** — die laufende Datei wird fertig geschrieben, dann
+  hört der Lauf auf. Was schon geprüft ist, zählt weiterhin.
+* **Der Stand steht in der Menüleiste**, auch ohne offenes Fenster, und am Ende
+  kommt eine Systemmeldung. Beim Beenden mit laufendem Auftrag fragt die App
+  nach.
+
+Das Zielschema der Sicherung ist der **Datumsbaum** (`JJJJ/JJJJMM/JJJJMMDD`),
+auf Wunsch unter einem frei benannten Ordner (etwa `Hochzeit Müller`). Wer in
+die Ordnerstruktur einer Vorlage einlesen will, nimmt dafür weiterhin das
+Importfenster.
+
+<img src="docs/screenshots/14-auftrag-fertig.png" alt="Auftrag fertig" width="640">
+
 ## Gestaltung
 
 Die App folgt dem **Brand Guide 2.0 der Lars Zumpe Medienproduktion**
@@ -491,7 +559,8 @@ keine Verläufe: Struktur entsteht durch die Linie.
 Die Programmsymbole werden aus der Logo-Geometrie des Brand Kits erzeugt:
 
 ```bash
-npm run logo   # schreibt build/icon.png, build/icon.ico und src/renderer/signet.png
+npm run logo   # schreibt build/icon.png, build/icon.ico, src/renderer/signet.png
+               # und die Symbole für die Menüleiste (src/renderer/tray*.png)
 ```
 
 ## Entwicklung
@@ -562,6 +631,12 @@ Ansichten und prüft unter anderem:
   lässt echte Fotos liegen,
 * ExifTool kommt aus dem Paket und nicht vom Rechner,
 * jede Aufgabe hat einen Abbrechen-Knopf, der erst auftaucht, wenn etwas läuft,
+* drei Ziele lassen sich einrichten, ein abgezogenes wird als „nicht
+  angeschlossen" erkannt, das Kartenfenster zählt die fehlenden Dateien und sagt
+  „nicht formatieren",
+* der Sicherungsauftrag läuft weiter, nachdem das Kartenfenster zu ist, legt
+  jede Aufnahme auf beiden angeschlossenen Zielen ab, prüft jedes einzeln nach
+  und gibt die Karte erst danach frei,
 * Urheber, Stichwörter und das GPS-Häkchen überleben einen Neustart,
 * bei 1240, 900 und 620 px Fensterbreite scrollt die Seite nicht seitlich.
 
@@ -585,7 +660,10 @@ src/core/       Plattformunabhängige Logik, ohne Electron-Abhängigkeit
   mitgeliefert.js findet das mitgelieferte ExifTool (gepackt und in Entwicklung)
   werkzeuge.js    Stand der Hilfsprogramme für die Oberfläche
   exif.js         ExifTool-Anbindung (Lesen der Metadaten)
-  devices.js      erkennt angesteckte Wechseldatenträger (Kamera/SD über DCIM)
+  devices.js      erkennt Wechseldatenträger (Kamera/SD über DCIM) und listet
+                  alle eingehängten Laufwerke mit freiem Platz
+  ziele.js        Sicherungsziele: Name, Rolle, Stand, Zwei-Kopien-Regel
+  auftraege.js    Warteschlange der Sicherungsaufträge und der Satz am Ende
   importPlan.js   ordnet Dateien anhand ihres Datums einem Zielschema zu
   importRun.js    sammelt Medien, vergleicht (FreeFileSync-Art), setzt um
   lightroom.js    Preset-Pfade je Plattform, Kopieren und Anpassen
@@ -594,6 +672,8 @@ src/core/       Plattformunabhängige Logik, ohne Electron-Abhängigkeit
   dates.js        Tagesberechnung, Jahresermittlung
   validate.js     Namensprüfung und Absicherung der Ordnernamen
 src/main/       Electron-Hauptprozess: Fenster, Menü, Dialoge, IPC
+  tray.js         das Symbol in der Menüleiste mit Stand und Kurzwegen
+  wache.js        sieht im Takt nach, ob eine Karte gesteckt wurde
 src/renderer/   Oberfläche (HTML/CSS/JS, ohne Node-Zugriff)
 scripts/smoke.js    Headless-Durchlauf, erzeugt zugleich die Screenshots
 scripts/logo.js     erzeugt die Programmsymbole aus der Logo-Geometrie
